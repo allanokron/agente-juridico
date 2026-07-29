@@ -5,12 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Upload, FileText, X, Loader2 } from "lucide-react";
+import { upload } from "@vercel/blob/client";
 
 interface FileUploadProps {
   processoId?: string;
   empresaId: string;
   usuarioId: string;
-  onUploadComplete?: (doc: any) => void;
+  onUploadComplete?: () => void;
 }
 
 const ACCEPTED_TYPES = [
@@ -57,6 +58,7 @@ export function FileUpload({
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback((selected: File) => {
@@ -107,16 +109,6 @@ export function FileUpload({
     setError(null);
 
     try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          resolve(result.split(",")[1]);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
       const tipoArquivo = file.type.includes("pdf")
         ? "PDF"
         : file.type.includes("image")
@@ -129,33 +121,31 @@ export function FileUpload({
                 ? "ZIP"
                 : "OUTRO";
 
-      const response = await fetch("/api/documentos/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      if (!processoId || !empresaId || !usuarioId) {
+        throw new Error("Processo ou usuário ainda não foi carregado");
+      }
+
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-");
+      await upload(`processos/${processoId}/${safeName}`, file, {
+        access: "private",
+        handleUploadUrl: "/api/documentos/upload",
+        clientPayload: JSON.stringify({
           nome: file.name,
           tamanho: file.size,
           mimeType: file.type,
           tipoArquivo,
-          conteudo: base64,
           processoId,
-          empresaId,
-          usuarioId,
         }),
+        onUploadProgress: ({ percentage }) => setProgress(Math.round(percentage)),
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Erro ao enviar arquivo");
-      }
-
-      const doc = await response.json();
       setFile(null);
-      onUploadComplete?.(doc);
+      setProgress(100);
+      window.setTimeout(() => onUploadComplete?.(), 700);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao enviar arquivo");
     } finally {
       setIsUploading(false);
+      setProgress(0);
     }
   };
 
@@ -237,6 +227,7 @@ export function FileUpload({
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Enviando...
+                {progress > 0 ? ` ${progress}%` : ""}
               </>
             ) : (
               <>

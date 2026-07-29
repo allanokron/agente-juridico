@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 interface User {
@@ -19,51 +19,49 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  loading: boolean;
   setUser: (user: User | null) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  loading: true,
   setUser: () => {},
-  logout: () => {},
+  logout: async () => {},
 });
-
-const STORAGE_KEY = "agente-juridico-user";
-
-function readStoredUser(): User | null {
-  if (typeof window === "undefined") return null;
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (!stored) return null;
-  try {
-    return JSON.parse(stored);
-  } catch {
-    localStorage.removeItem(STORAGE_KEY);
-    return null;
-  }
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const [user, setUserState] = useState<User | null>(() => readStoredUser());
+  const [user, setUserState] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/me")
+      .then(async (response) => {
+        if (!active) return;
+        setUserState(response.ok ? await response.json() : null);
+      })
+      .catch(() => active && setUserState(null))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const setUser = useCallback((u: User | null) => {
     setUserState(u);
-    if (u) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
-    }
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
     setUserState(null);
-    localStorage.removeItem(STORAGE_KEY);
     router.push("/");
   }, [router]);
 
   return (
-    <AuthContext.Provider value={{ user, setUser, logout }}>
+    <AuthContext.Provider value={{ user, loading, setUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

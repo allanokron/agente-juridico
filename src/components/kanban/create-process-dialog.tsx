@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, UserPlus, Search, Upload, FileText, X } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
+import { FileUpload } from "@/components/documents/file-upload";
 
 function formatCpf(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -56,8 +58,6 @@ interface Usuario {
   role: string;
 }
 
-const EMPRESA_ID = "empresa-1";
-
 interface TipoProcessoOption {
   valor: string;
   label: string;
@@ -88,6 +88,8 @@ export function CreateProcessDialog({
   onOpenChange,
   onCreated,
 }: CreateProcessDialogProps) {
+  const { user } = useAuth();
+  const empresaId = user?.empresaId || "";
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
 
@@ -137,9 +139,9 @@ export function CreateProcessDialog({
   const fetchData = useCallback(async () => {
     try {
       const [clientesRes, usuariosRes, tiposRes] = await Promise.all([
-        fetch(`/api/clientes?empresaId=${EMPRESA_ID}`),
-        fetch(`/api/usuarios?empresaId=${EMPRESA_ID}`),
-        fetch(`/api/tipos-processo?empresaId=${EMPRESA_ID}`),
+        fetch(`/api/clientes?empresaId=${empresaId}`),
+        fetch(`/api/usuarios?empresaId=${empresaId}`),
+        fetch(`/api/tipos-processo?empresaId=${empresaId}`),
       ]);
 
       if (clientesRes.ok) setClientes(await clientesRes.json());
@@ -151,7 +153,7 @@ export function CreateProcessDialog({
     } catch {
       // handled silently
     }
-  }, []);
+  }, [empresaId]);
 
   useEffect(() => {
     if (open) {
@@ -190,7 +192,7 @@ export function CreateProcessDialog({
     }
     try {
       const res = await fetch(
-        `/api/clientes?empresaId=${EMPRESA_ID}&cpfCnpj=${encodeURIComponent(digits)}`
+        `/api/clientes?empresaId=${empresaId}&cpfCnpj=${encodeURIComponent(digits)}`
       );
       if (res.ok) {
         const data = await res.json();
@@ -213,7 +215,7 @@ export function CreateProcessDialog({
     }
     try {
       const res = await fetch(
-        `/api/processos?empresaId=${EMPRESA_ID}&numero=${encodeURIComponent(digits)}`
+        `/api/processos?empresaId=${empresaId}&numero=${encodeURIComponent(digits)}`
       );
       if (res.ok) {
         const data = await res.json();
@@ -320,7 +322,7 @@ export function CreateProcessDialog({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            empresaId: EMPRESA_ID,
+            empresaId,
             nome: newCliente.nome,
             cpfCnpj: stripMask(newCliente.cpfCnpj) || null,
             telefone: newCliente.telefone || null,
@@ -338,7 +340,7 @@ export function CreateProcessDialog({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          empresaId: EMPRESA_ID,
+          empresaId,
           clienteId,
           responsavelId,
           numeroProcesso: processo.numeroProcesso || null,
@@ -776,9 +778,10 @@ export function CreateProcessDialog({
               </p>
             </div>
             {createdProcessoId && (
-              <FileUploadStep
+              <FileUpload
                 processoId={createdProcessoId}
-                empresaId={EMPRESA_ID}
+                empresaId={empresaId}
+                usuarioId={user?.id || ""}
               />
             )}
           </div>

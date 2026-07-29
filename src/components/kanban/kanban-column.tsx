@@ -15,6 +15,7 @@ interface Etapa {
 
 interface CardData {
   id: string;
+  processoId: string;
   numeroProcesso: string;
   nomeCliente: string;
   responsavel: string | null;

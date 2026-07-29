@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const empresaId = searchParams.get("empresaId");
-
-    if (!empresaId) {
+    const user = await getSessionUser();
+    if (!user) {
       return NextResponse.json(
-        { error: "empresaId é obrigatório" },
-        { status: 400 }
+        { error: "Não autenticado" },
+        { status: 401 }
       );
     }
+    const empresaId = user.empresaId;
 
     const usuarios = await prisma.usuario.findMany({
       where: {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { canAccessProcess, getSessionUser } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
@@ -7,6 +8,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (!(await canAccessProcess(id, sessionUser))) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
 
     const processo = await prisma.processo.findUnique({
       where: { id },
@@ -44,6 +48,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (!(await canAccessProcess(id, sessionUser))) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     const body = await request.json();
     const { usuarioId } = body;
 
@@ -69,7 +76,7 @@ export async function POST(
       where: { id: usuarioId },
     });
 
-    if (!usuario) {
+    if (!usuario || usuario.empresaId !== sessionUser.empresaId) {
       return NextResponse.json(
         { error: "Usuário não encontrado" },
         { status: 404 }
@@ -95,7 +102,7 @@ export async function POST(
     const atribuicao = await prisma.processoAtribuicao.create({
       data: {
         processoId: id,
-        usuarioId,
+        usuarioId: sessionUser.id,
       },
       include: {
         usuario: {
@@ -129,6 +136,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (!(await canAccessProcess(id, sessionUser))) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     const body = await request.json();
     const { usuarioId } = body;
 
@@ -172,7 +182,7 @@ export async function DELETE(
     await prisma.historico.create({
       data: {
         processoId: id,
-        usuarioId,
+        usuarioId: sessionUser.id,
         descricao: `${usuario?.nome || "Usuário"} foi removido do processo`,
         tipo: "remocao_atribuicao",
       },

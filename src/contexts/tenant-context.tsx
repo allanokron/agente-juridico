@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode } from "react";
+import { useAuth } from "@/contexts/auth-context";
 
 interface TenantContextType {
   empresaId: string | null;
@@ -15,12 +16,13 @@ const TenantContext = createContext<TenantContextType>({
 });
 
 export function TenantProvider({ children }: { children: ReactNode }) {
-  const [empresaId, setEmpresaId] = useState<string | null>("empresa-1");
-  const [empresaNome, setEmpresaNome] = useState<string | null>("Silva & Associados");
+  const { user } = useAuth();
+  const [selectedEmpresa, setSelectedEmpresa] = useState<{ id: string; nome: string } | null>(null);
+  const empresaId = selectedEmpresa?.id || user?.empresaId || null;
+  const empresaNome = selectedEmpresa?.nome || null;
 
   const setEmpresa = (id: string, nome: string) => {
-    setEmpresaId(id);
-    setEmpresaNome(nome);
+    setSelectedEmpresa({ id, nome });
   };
 
   return (

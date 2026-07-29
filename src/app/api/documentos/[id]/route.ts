@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { del } from "@vercel/blob";
+import { canAccessProcess, getSessionUser } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
@@ -7,6 +9,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
     const documento = await prisma.documento.findUnique({
       where: { id },
@@ -29,6 +33,9 @@ export async function GET(
         { status: 404 }
       );
     }
+    if (!documento.processoId || !(await canAccessProcess(documento.processoId, user))) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    }
 
     return NextResponse.json(documento);
   } catch (error) {
@@ -46,22 +53,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json().catch(() => ({}));
-    const { usuarioId } = body as { usuarioId?: string };
-
-    if (!usuarioId) {
-      return NextResponse.json(
-        { error: "usuarioId é obrigatório" },
-        { status: 400 }
-      );
-    }
-
-    const usuario = await prisma.usuario.findUnique({
-      where: { id: usuarioId },
-      select: { role: true },
-    });
-
-    if (!usuario || (usuario.role !== "SUPER_ADMIN" && usuario.role !== "ADMINISTRADOR")) {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (user.role !== "SUPER_ADMIN" && user.role !== "ADMINISTRADOR") {
       return NextResponse.json(
         { error: "Apenas administradores podem excluir documentos" },
         { status: 403 }
@@ -76,8 +70,23 @@ export async function DELETE(
         { status: 404 }
       );
     }
+    if (!documento.processoId || !(await canAccessProcess(documento.processoId, user))) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    }
 
-    await prisma.documento.delete({ where: { id } });
+    await prisma.$transaction([
+      prisma.historico.create({
+        data: {
+          processoId: documento.processoId,
+          usuarioId: user.id,
+          descricao: `Documento "${documento.nome}" removido do processo`,
+          tipo: "DOCUMENTO_REMOVIDO",
+          detalhes: { documentoId: documento.id, nome: documento.nome },
+        },
+      }),
+      prisma.documento.delete({ where: { id } }),
+    ]);
+    if (documento.blobPath) await del(documento.blobPath);
 
     return NextResponse.json({ message: "Documento excluído com sucesso" });
   } catch (error) {

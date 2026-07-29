@@ -1,49 +1,54 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Bell,
+  Calendar,
+  Check,
+  Clock,
+  FileText,
+  History,
+  Loader2,
+  MessageSquare,
+  Plus,
+  Save,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { DocumentList } from "@/components/documents/document-list";
 import { FileUpload } from "@/components/documents/file-upload";
-import { EmptyState } from "@/components/shared/empty-state";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useTenant } from "@/contexts/tenant-context";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
-  ArrowLeft,
-  FileText,
-  Calendar,
-  History,
-  Briefcase,
-  User,
-  Users,
-  Scale,
-  MapPin,
-  Clock,
-  CircleCheck,
-  CircleDot,
-  AlertCircle,
-  Circle,
-} from "lucide-react";
-import { StatusProcesso, TipoProcesso } from "@/generated/prisma/enums";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/auth-context";
 
-interface Historico {
+type TeamMember = { id: string; nome: string; email?: string; avatar?: string | null };
+type Assignment = { id: string; usuario: TeamMember };
+type HistoryEntry = {
   id: string;
   descricao: string;
   tipo: string | null;
+  detalhes?: Record<string, unknown> | null;
   createdAt: string;
-  usuario?: {
-    id: string;
-    nome: string;
-    avatar?: string | null;
-  } | null;
-}
-
-interface Evento {
+  usuario?: TeamMember | null;
+};
+type Activity = {
   id: string;
   titulo: string;
   descricao?: string | null;
@@ -52,25 +57,22 @@ interface Evento {
   tipo: string;
   prioridade: string;
   status: string;
-}
-
-interface Atribuicao {
+  responsavel?: TeamMember;
+};
+type Comment = {
   id: string;
-  usuario: {
-    id: string;
-    nome: string;
-    email: string;
-    avatar?: string | null;
-  };
-}
-
-interface ProcessDetail {
+  conteudo: string;
+  createdAt: string;
+  autor: TeamMember;
+  mencoes: { usuario: TeamMember }[];
+};
+type ProcessDetail = {
   id: string;
   numeroProcesso?: string | null;
   tribunal?: string | null;
   vara?: string | null;
-  tipoProcesso: TipoProcesso;
-  status: StatusProcesso;
+  tipoProcesso: string;
+  status: string;
   observacoes?: string | null;
   dataCadastro: string;
   cliente: {
@@ -80,251 +82,232 @@ interface ProcessDetail {
     telefone?: string | null;
     email?: string | null;
   };
-  responsavel: {
-    id: string;
-    nome: string;
-    email: string;
-    avatar?: string | null;
-  };
+  responsavel: TeamMember;
   kanbanCard?: {
     id: string;
     dataRevisao?: string | null;
-    etapa: {
-      id: string;
-      nome: string;
-      cor?: string | null;
-    };
+    hora?: string | null;
+    etapa: { id: string; nome: string; cor?: string | null };
   } | null;
-  historicos: Historico[];
-  eventos: Evento[];
-  atribuicoes: Atribuicao[];
-}
+  historicos: HistoryEntry[];
+  eventos: Activity[];
+  atribuicoes: Assignment[];
+};
 
-function getStatusColor(status: StatusProcesso) {
-  switch (status) {
-    case StatusProcesso.ATIVO:
-      return "bg-emerald-100 text-emerald-700";
-    case StatusProcesso.EM_ANDAMENTO:
-      return "bg-blue-100 text-blue-700";
-    case StatusProcesso.SUSPENSO:
-      return "bg-amber-100 text-amber-700";
-    case StatusProcesso.ARQUIVADO:
-      return "bg-muted text-muted-foreground";
-    case StatusProcesso.FINALIZADO:
-      return "bg-purple-100 text-purple-700";
-    case StatusProcesso.GANHO:
-      return "bg-emerald-100 text-emerald-700";
-    case StatusProcesso.PERDIDO:
-      return "bg-red-100 text-red-700";
-    default:
-      return "bg-muted text-muted-foreground";
-  }
-}
+const PROCESS_TYPES = [
+  "CIVIL",
+  "CRIMINAL",
+  "TRABALHISTA",
+  "ADMINISTRATIVO",
+  "TRIBUTARIO",
+  "FAMILIAR",
+  "EMPRESARIAL",
+  "CONSUMIDOR",
+  "AMBIENTAL",
+  "PREVIDENCIARIO",
+  "OUTRO",
+];
+const PROCESS_STATUSES = [
+  "ATIVO",
+  "EM_ANDAMENTO",
+  "SUSPENSO",
+  "ARQUIVADO",
+  "FINALIZADO",
+  "GANHO",
+  "PERDIDO",
+];
 
-function getStatusLabel(status: StatusProcesso) {
-  switch (status) {
-    case StatusProcesso.ATIVO:
-      return "Ativo";
-    case StatusProcesso.EM_ANDAMENTO:
-      return "Em Andamento";
-    case StatusProcesso.SUSPENSO:
-      return "Suspenso";
-    case StatusProcesso.ARQUIVADO:
-      return "Arquivado";
-    case StatusProcesso.FINALIZADO:
-      return "Finalizado";
-    case StatusProcesso.GANHO:
-      return "Ganho";
-    case StatusProcesso.PERDIDO:
-      return "Perdido";
-    default:
-      return status;
-  }
-}
-
-function getTipoLabel(tipo: TipoProcesso) {
-  const labels: Record<TipoProcesso, string> = {
-    [TipoProcesso.CIVIL]: "Cível",
-    [TipoProcesso.CRIMINAL]: "Criminal",
-    [TipoProcesso.TRABALHISTA]: "Trabalhista",
-    [TipoProcesso.ADMINISTRATIVO]: "Administrativo",
-    [TipoProcesso.TRIBUTARIO]: "Tributário",
-    [TipoProcesso.FAMILIAR]: "Familiar",
-    [TipoProcesso.EMPRESARIAL]: "Empresarial",
-    [TipoProcesso.CONSUMIDOR]: "Consumidor",
-    [TipoProcesso.AMBIENTAL]: "Ambiental",
-    [TipoProcesso.PREVIDENCIARIO]: "Previdenciário",
-    [TipoProcesso.OUTRO]: "Outro",
-  };
-  return labels[tipo] || tipo;
-}
-
-function getHistoricoIcon(tipo: string | null) {
-  switch (tipo) {
-    case "criacao":
-      return <CircleCheck className="h-4 w-4 text-emerald-500" />;
-    case "atribuicao":
-      return <Users className="h-4 w-4 text-blue-500" />;
-    case "remocao_atribuicao":
-      return <User className="h-4 w-4 text-amber-500" />;
-    case "status":
-      return <CircleDot className="h-4 w-4 text-purple-500" />;
-    case "edicao":
-      return <FileText className="h-4 w-4 text-muted-foreground" />;
-    default:
-      return <Circle className="h-4 w-4 text-muted-foreground/60" />;
-  }
-}
-
-function formatDateTime(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
-function getInitials(name: string) {
+function initials(name: string) {
   return name
     .split(" ")
-    .map((n) => n[0])
+    .map((part) => part[0])
     .join("")
-    .toUpperCase()
-    .slice(0, 2);
+    .slice(0, 2)
+    .toUpperCase();
 }
 
-function getEventoStatusColor(status: string) {
-  switch (status) {
-    case "PENDENTE":
-      return "bg-amber-100 text-amber-700";
-    case "EM_ANDAMENTO":
-      return "bg-blue-100 text-blue-700";
-    case "CONCLUIDO":
-      return "bg-emerald-100 text-emerald-700";
-    case "CANCELADO":
-      return "bg-muted text-muted-foreground";
-    case "REAGENDADO":
-      return "bg-purple-100 text-purple-700";
-    default:
-      return "bg-muted text-muted-foreground";
-  }
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(value));
 }
 
-function getEventoStatusLabel(status: string) {
-  switch (status) {
-    case "PENDENTE":
-      return "Pendente";
-    case "EM_ANDAMENTO":
-      return "Em Andamento";
-    case "CONCLUIDO":
-      return "Concluído";
-    case "CANCELADO":
-      return "Cancelado";
-    case "REAGENDADO":
-      return "Reagendado";
-    default:
-      return status;
-  }
+function dateInput(value?: string | null) {
+  return value ? value.slice(0, 10) : "";
 }
 
 export default function ProcessDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
-  const { empresaId } = useTenant();
+  const { user } = useAuth();
+  const [processId, setProcessId] = useState("");
   const [process, setProcess] = useState<ProcessDetail | null>(null);
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
-  const [processId, setProcessId] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const [documentsVersion, setDocumentsVersion] = useState(0);
+  const [form, setForm] = useState({
+    numeroProcesso: "",
+    tribunal: "",
+    vara: "",
+    tipoProcesso: "CIVIL",
+    status: "ATIVO",
+    observacoes: "",
+    responsavelId: "",
+    dataRevisao: "",
+    hora: "",
+  });
+  const [commentText, setCommentText] = useState("");
+  const [mentions, setMentions] = useState<string[]>([]);
+  const [activity, setActivity] = useState({
+    titulo: "",
+    descricao: "",
+    data: "",
+    hora: "",
+    tipo: "PRAZO",
+    prioridade: "MEDIA",
+    responsavelId: "",
+  });
 
   useEffect(() => {
-    params.then((p) => setProcessId(p.id));
+    params.then(({ id }) => setProcessId(id));
   }, [params]);
 
-  const fetchProcess = useCallback(async (id: string) => {
-    if (!id) return;
+  const load = useCallback(async () => {
+    if (!processId || !user?.empresaId) return;
     setLoading(true);
-    setNotFound(false);
     try {
-      const response = await fetch(`/api/processos/${id}`);
-      if (response.status === 404) {
-        setNotFound(true);
+      const [processResponse, commentsResponse, teamResponse] = await Promise.all([
+        fetch(`/api/processos/${processId}`),
+        fetch(`/api/processos/${processId}/comentarios`),
+        fetch(`/api/usuarios?empresaId=${user.empresaId}`),
+      ]);
+      if (processResponse.status === 403 || processResponse.status === 404) {
+        router.replace("/gestao-processos");
         return;
       }
-      if (!response.ok) {
-        throw new Error("Erro ao buscar processo");
-      }
-      const data = await response.json();
+      if (!processResponse.ok) throw new Error("Erro ao carregar processo");
+      const data = (await processResponse.json()) as ProcessDetail;
       setProcess(data);
-    } catch {
-      setNotFound(true);
+      setForm({
+        numeroProcesso: data.numeroProcesso || "",
+        tribunal: data.tribunal || "",
+        vara: data.vara || "",
+        tipoProcesso: data.tipoProcesso,
+        status: data.status,
+        observacoes: data.observacoes || "",
+        responsavelId: data.responsavel.id,
+        dataRevisao: dateInput(data.kanbanCard?.dataRevisao),
+        hora: data.kanbanCard?.hora || "",
+      });
+      if (commentsResponse.ok) setComments(await commentsResponse.json());
+      if (teamResponse.ok) setTeam(await teamResponse.json());
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [processId, router, user?.empresaId]);
 
   useEffect(() => {
-    if (processId) {
-      fetchProcess(processId);
+    void load();
+  }, [load]);
+
+  const saveProcess = async () => {
+    if (!process?.kanbanCard) return;
+    setSaving(true);
+    try {
+      const [processResponse, cardResponse] = await Promise.all([
+        fetch(`/api/processos/${process.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            numeroProcesso: form.numeroProcesso || null,
+            tribunal: form.tribunal || null,
+            vara: form.vara || null,
+            tipoProcesso: form.tipoProcesso,
+            status: form.status,
+            observacoes: form.observacoes || null,
+            responsavelId: form.responsavelId,
+          }),
+        }),
+        fetch(`/api/kanban/cards/${process.kanbanCard.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            dataRevisao: form.dataRevisao || null,
+            hora: form.hora || null,
+          }),
+        }),
+      ]);
+      if (!processResponse.ok || !cardResponse.ok) throw new Error("Erro ao salvar");
+      await load();
+    } finally {
+      setSaving(false);
     }
-  }, [processId, fetchProcess]);
+  };
 
-  if (loading) {
+  const toggleAssignment = async (memberId: string) => {
+    if (!process) return;
+    const assigned = process.atribuicoes.some((item) => item.usuario.id === memberId);
+    const response = await fetch(`/api/processos/${process.id}/atribuicoes`, {
+      method: assigned ? "DELETE" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ usuarioId: memberId }),
+    });
+    if (response.ok) await load();
+  };
+
+  const addComment = async () => {
+    if (!commentText.trim() || !process) return;
+    const response = await fetch(`/api/processos/${process.id}/comentarios`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conteudo: commentText, mencoes: mentions }),
+    });
+    if (response.ok) {
+      setCommentText("");
+      setMentions([]);
+      await load();
+    }
+  };
+
+  const addActivity = async () => {
+    if (!activity.titulo.trim() || !activity.data || !process) return;
+    const response = await fetch(`/api/processos/${process.id}/atividades`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(activity),
+    });
+    if (response.ok) {
+      setActivity({
+        titulo: "",
+        descricao: "",
+        data: "",
+        hora: "",
+        tipo: "PRAZO",
+        prioridade: "MEDIA",
+        responsavelId: "",
+      });
+      await load();
+    }
+  };
+
+  const finishActivity = async (eventId: string) => {
+    if (!process) return;
+    const response = await fetch(`/api/processos/${process.id}/atividades/${eventId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "CONCLUIDO" }),
+    });
+    if (response.ok) await load();
+  };
+
+  if (loading || !process || !user) {
     return (
       <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="h-8 w-8 bg-border rounded animate-pulse" />
-            <div className="space-y-2">
-              <div className="h-7 w-64 bg-border rounded animate-pulse" />
-              <div className="h-4 w-48 bg-border rounded animate-pulse" />
-            </div>
-          </div>
-          <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-2 space-y-6">
-              <div className="h-10 w-full bg-border rounded animate-pulse" />
-              <div className="h-64 bg-border rounded animate-pulse" />
-            </div>
-            <div className="space-y-6">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-48 bg-border rounded animate-pulse" />
-              ))}
-            </div>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (notFound || !process) {
-    return (
-      <DashboardLayout>
-        <div className="space-y-6">
-          <Button
-            variant="ghost"
-            onClick={() => router.push("/processos")}
-            className="gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Voltar
-          </Button>
-          <EmptyState
-            icon={Briefcase}
-            title="Processo não encontrado"
-            description="O processo solicitado não existe ou foi removido."
-            action={{
-              label: "Voltar para processos",
-              onClick: () => router.push("/processos"),
-            }}
-          />
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Loader2 className="h-7 w-7 animate-spin text-primary" />
         </div>
       </DashboardLayout>
     );
@@ -332,365 +315,196 @@ export default function ProcessDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.push("/processos")}
-              className="mt-1"
-            >
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <Button variant="ghost" size="icon" onClick={() => router.push("/gestao-processos")}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-foreground">
-                  {process.numeroProcesso || "Sem número"}
-                </h1>
-                <Badge variant="secondary" className={getStatusColor(process.status)}>
-                  {getStatusLabel(process.status)}
-                </Badge>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold">{process.numeroProcesso || "Processo sem número"}</h1>
+                <Badge>{process.kanbanCard?.etapa.nome || process.status}</Badge>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                {process.cliente.nome}
-              </p>
+              <p className="text-sm text-muted-foreground">{process.cliente.nome}</p>
             </div>
           </div>
+          <Button onClick={saveProcess} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Salvar alterações
+          </Button>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2">
-            <Tabs defaultValue="documentos" className="space-y-4">
-              <TabsList>
-                <TabsTrigger value="documentos">
-                  <FileText className="h-4 w-4 mr-1.5" />
-                  Documentos
-                </TabsTrigger>
-                <TabsTrigger value="agenda">
-                  <Calendar className="h-4 w-4 mr-1.5" />
-                  Agenda
-                </TabsTrigger>
-                <TabsTrigger value="historico">
-                  <History className="h-4 w-4 mr-1.5" />
-                  Histórico
-                </TabsTrigger>
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-w-0 space-y-5">
+            <Card>
+              <CardHeader><CardTitle>Dados do processo</CardTitle></CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Número</Label>
+                  <Input value={form.numeroProcesso} onChange={(event) => setForm({ ...form, numeroProcesso: event.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Responsável</Label>
+                  <Select value={form.responsavelId} onValueChange={(value) => setForm({ ...form, responsavelId: value || "" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{team.map((member) => <SelectItem key={member.id} value={member.id}>{member.nome}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Tipo</Label>
+                  <Select value={form.tipoProcesso} onValueChange={(value) => setForm({ ...form, tipoProcesso: value || "CIVIL" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{PROCESS_TYPES.map((type) => <SelectItem key={type} value={type}>{type.replaceAll("_", " ")}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value || "ATIVO" })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{PROCESS_STATUSES.map((status) => <SelectItem key={status} value={status}>{status.replaceAll("_", " ")}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2"><Label>Tribunal</Label><Input value={form.tribunal} onChange={(event) => setForm({ ...form, tribunal: event.target.value })} /></div>
+                <div className="space-y-2"><Label>Vara</Label><Input value={form.vara} onChange={(event) => setForm({ ...form, vara: event.target.value })} /></div>
+                <div className="space-y-2"><Label>Próxima revisão</Label><Input type="date" value={form.dataRevisao} onChange={(event) => setForm({ ...form, dataRevisao: event.target.value })} /></div>
+                <div className="space-y-2"><Label>Hora</Label><Input type="time" value={form.hora} onChange={(event) => setForm({ ...form, hora: event.target.value })} /></div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Observações gerais</Label>
+                  <Textarea className="min-h-28" value={form.observacoes} onChange={(event) => setForm({ ...form, observacoes: event.target.value })} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Tabs defaultValue="atividades">
+              <TabsList className="flex flex-wrap">
+                <TabsTrigger value="atividades"><Calendar className="h-4 w-4" /> Atividades</TabsTrigger>
+                <TabsTrigger value="documentos"><FileText className="h-4 w-4" /> Documentos</TabsTrigger>
+                <TabsTrigger value="equipe"><Users className="h-4 w-4" /> Equipe</TabsTrigger>
+                <TabsTrigger value="comentarios"><MessageSquare className="h-4 w-4" /> Comentários</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="documentos">
-                <div className="space-y-4">
-                  <FileUpload
-                    processoId={processId}
-                    empresaId={empresaId || ""}
-                    usuarioId={process.responsavel.id}
-                  />
-                  <DocumentList
-                    processoId={processId}
-                    empresaId={empresaId || ""}
-                    usuarioId={process.responsavel.id}
-                  />
-                </div>
-              </TabsContent>
-
-              <TabsContent value="agenda">
-                <div>
-                  {process.eventos.length === 0 ? (
-                    <Card>
-                      <CardContent className="py-12">
-                        <EmptyState
-                          icon={Calendar}
-                          title="Nenhum evento"
-                          description="Não há eventos agendados para este processo."
-                        />
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <div className="space-y-3">
-                      {process.eventos.map((evento) => (
-                        <Card key={evento.id}>
-                          <CardContent className="py-4">
-                            <div className="flex items-start justify-between">
-                              <div className="space-y-1">
-                                <h4 className="font-medium text-foreground">
-                                  {evento.titulo}
-                                </h4>
-                                {evento.descricao && (
-                                  <p className="text-sm text-muted-foreground">
-                                    {evento.descricao}
-                                  </p>
-                                )}
-                                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="h-3 w-3" />
-                                    {formatDate(evento.data)}
-                                  </span>
-                                  {evento.hora && (
-                                    <span className="flex items-center gap-1">
-                                      <Clock className="h-3 w-3" />
-                                      {evento.hora}
-                                    </span>
-                                  )}
-                                  <span className="flex items-center gap-1">
-                                    <AlertCircle className="h-3 w-3" />
-                                    {evento.prioridade}
-                                  </span>
-                                </div>
-                              </div>
-                              <Badge
-                                variant="secondary"
-                                className={getEventoStatusColor(evento.status)}
-                              >
-                                {getEventoStatusLabel(evento.status)}
-                              </Badge>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="historico">
-                <div>
-                  {process.historicos.length === 0 ? (
-                    <Card>
-                      <CardContent className="py-12">
-                        <EmptyState
-                          icon={History}
-                          title="Sem histórico"
-                          description="Ainda não há registros de alterações para este processo."
-                        />
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <Card>
-                      <CardContent className="py-4">
-                        <div className="relative">
-                          <div className="absolute left-[19px] top-0 bottom-0 w-px bg-border" />
-                          <div className="space-y-6">
-                            {process.historicos.map((item) => (
-                              <div key={item.id} className="relative flex gap-3">
-                                <div className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white border border-border">
-                                  {getHistoricoIcon(item.tipo)}
-                                </div>
-                                <div className="flex-1 pt-1">
-                                  <p className="text-sm text-foreground">
-                                    {item.descricao}
-                                  </p>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    {item.usuario && (
-                                      <span className="text-xs text-muted-foreground">
-                                        {item.usuario.nome}
-                                      </span>
-                                    )}
-                                    <span className="text-xs text-muted-foreground/60">
-                                      {formatDateTime(item.createdAt)}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+              <TabsContent value="atividades" className="space-y-4">
+                <Card>
+                  <CardHeader><CardTitle className="text-base">Nova atividade ou prazo</CardTitle></CardHeader>
+                  <CardContent className="grid gap-3 md:grid-cols-2">
+                    <Input placeholder="Título" value={activity.titulo} onChange={(event) => setActivity({ ...activity, titulo: event.target.value })} />
+                    <Select value={activity.tipo} onValueChange={(value) => setActivity({ ...activity, tipo: value || "PRAZO" })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{["PRAZO", "AUDIENCIA", "REUNIAO", "PROTOCOLO", "LEMBRETE", "PERSONALIZADO"].map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Input type="date" value={activity.data} onChange={(event) => setActivity({ ...activity, data: event.target.value })} />
+                    <Input type="time" value={activity.hora} onChange={(event) => setActivity({ ...activity, hora: event.target.value })} />
+                    <Textarea className="md:col-span-2" placeholder="Descrição" value={activity.descricao} onChange={(event) => setActivity({ ...activity, descricao: event.target.value })} />
+                    <Button className="md:col-span-2" onClick={addActivity}><Plus className="h-4 w-4" /> Adicionar atividade</Button>
+                  </CardContent>
+                </Card>
+                <div className="space-y-3">
+                  {process.eventos.map((event) => (
+                    <Card key={event.id}>
+                      <CardContent className="flex items-start justify-between gap-4 py-4">
+                        <div>
+                          <div className="flex items-center gap-2"><strong>{event.titulo}</strong><Badge variant="outline">{event.status}</Badge></div>
+                          {event.descricao && <p className="mt-1 text-sm text-muted-foreground">{event.descricao}</p>}
+                          <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                            <Calendar className="h-3 w-3" /> {new Date(event.data).toLocaleDateString("pt-BR", { timeZone: "UTC" })}
+                            {event.hora && <><Clock className="ml-2 h-3 w-3" /> {event.hora}</>}
+                          </p>
                         </div>
+                        {event.status !== "CONCLUIDO" && <Button size="sm" variant="outline" onClick={() => finishActivity(event.id)}><Check className="h-4 w-4" /> Concluir</Button>}
                       </CardContent>
                     </Card>
-                  )}
+                  ))}
                 </div>
+              </TabsContent>
+
+              <TabsContent value="documentos" className="space-y-4">
+                <FileUpload
+                  processoId={process.id}
+                  empresaId={user.empresaId}
+                  usuarioId={user.id}
+                  onUploadComplete={() => {
+                    setDocumentsVersion((value) => value + 1);
+                    void load();
+                  }}
+                />
+                <DocumentList key={documentsVersion} processoId={process.id} empresaId={user.empresaId} usuarioId={user.id} isAdmin={user.role === "SUPER_ADMIN" || user.role === "ADMINISTRADOR"} />
+              </TabsContent>
+
+              <TabsContent value="equipe">
+                <Card>
+                  <CardHeader><CardTitle className="flex items-center gap-2 text-base"><UserPlus className="h-4 w-4" /> Pessoas com acesso ao processo</CardTitle></CardHeader>
+                  <CardContent className="grid gap-2 sm:grid-cols-2">
+                    {team.map((member) => {
+                      const checked = process.atribuicoes.some((assignment) => assignment.usuario.id === member.id);
+                      return (
+                        <label key={member.id} className="flex cursor-pointer items-center gap-3 rounded-lg border p-3">
+                          <Checkbox checked={checked} onCheckedChange={() => toggleAssignment(member.id)} />
+                          <Avatar size="sm"><AvatarImage src={member.avatar || undefined} /><AvatarFallback>{initials(member.nome)}</AvatarFallback></Avatar>
+                          <span className="text-sm">{member.nome}</span>
+                        </label>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="comentarios" className="space-y-4">
+                <Card>
+                  <CardContent className="space-y-3 py-4">
+                    <Textarea placeholder="Escreva um comentário..." value={commentText} onChange={(event) => setCommentText(event.target.value)} />
+                    <div>
+                      <Label className="mb-2 block text-xs">Mencionar pessoas</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {team.filter((member) => member.id !== user.id).map((member) => (
+                          <Button key={member.id} type="button" size="sm" variant={mentions.includes(member.id) ? "default" : "outline"} onClick={() => setMentions((current) => current.includes(member.id) ? current.filter((id) => id !== member.id) : [...current, member.id])}>
+                            @{member.nome.split(" ")[0]}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    <Button onClick={addComment}><MessageSquare className="h-4 w-4" /> Publicar comentário</Button>
+                  </CardContent>
+                </Card>
+                {comments.map((comment) => (
+                  <Card key={comment.id}>
+                    <CardContent className="flex gap-3 py-4">
+                      <Avatar><AvatarImage src={comment.autor.avatar || undefined} /><AvatarFallback>{initials(comment.autor.nome)}</AvatarFallback></Avatar>
+                      <div>
+                        <p className="text-sm font-medium">{comment.autor.nome} <span className="font-normal text-muted-foreground">· {formatDateTime(comment.createdAt)}</span></p>
+                        <p className="mt-1 whitespace-pre-wrap text-sm">{comment.conteudo}</p>
+                        {comment.mencoes.length > 0 && <p className="mt-2 text-xs text-primary">{comment.mencoes.map(({ usuario: mentioned }) => `@${mentioned.nome}`).join(" ")}</p>}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </TabsContent>
             </Tabs>
           </div>
 
-          <div className="space-y-6">
+          <aside className="space-y-4 xl:sticky xl:top-20 xl:self-start">
             <Card>
-              <CardHeader className="border-b border-border/50">
-                <CardTitle className="text-base">Informações do Processo</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Número</span>
-                    <span className="text-sm font-medium text-foreground font-mono">
-                      {process.numeroProcesso || "—"}
-                    </span>
+              <CardHeader><CardTitle className="flex items-center gap-2 text-base"><History className="h-4 w-4" /> Timeline completa</CardTitle></CardHeader>
+              <CardContent className="max-h-[70vh] space-y-4 overflow-y-auto">
+                {process.historicos.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma alteração registrada.</p>}
+                {process.historicos.map((entry) => (
+                  <div key={entry.id} className="relative border-l pl-4">
+                    <span className="absolute -left-1.5 top-1 h-3 w-3 rounded-full bg-primary" />
+                    <p className="text-sm font-medium">{entry.descricao}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{entry.usuario?.nome || "Sistema"} · {formatDateTime(entry.createdAt)}</p>
+                    {entry.detalhes && <pre className="mt-2 overflow-auto rounded bg-muted p-2 text-[10px] text-muted-foreground">{JSON.stringify(entry.detalhes, null, 2)}</pre>}
                   </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Tipo</span>
-                    <span className="text-sm font-medium text-foreground">
-                      {getTipoLabel(process.tipoProcesso)}
-                    </span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Tribunal</span>
-                    <span className="text-sm font-medium text-foreground">
-                      {process.tribunal || "—"}
-                    </span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Vara</span>
-                    <span className="text-sm font-medium text-foreground">
-                      {process.vara || "—"}
-                    </span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Status</span>
-                    <Badge
-                      variant="secondary"
-                      className={getStatusColor(process.status)}
-                    >
-                      {getStatusLabel(process.status)}
-                    </Badge>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Data de cadastro</span>
-                    <span className="text-sm font-medium text-foreground">
-                      {formatDate(process.dataCadastro)}
-                    </span>
-                  </div>
-                </div>
+                ))}
               </CardContent>
             </Card>
-
             <Card>
-              <CardHeader className="border-b border-border/50">
-                <CardTitle className="text-base">Dados do Cliente</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Nome</span>
-                    <span className="text-sm font-medium text-foreground">
-                      {process.cliente.nome}
-                    </span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">CPF/CNPJ</span>
-                    <span className="text-sm font-medium text-foreground">
-                      {process.cliente.cpfCnpj || "—"}
-                    </span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Telefone</span>
-                    <span className="text-sm font-medium text-foreground">
-                      {process.cliente.telefone || "—"}
-                    </span>
-                  </div>
-                  <Separator />
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">E-mail</span>
-                    <span className="text-sm font-medium text-foreground truncate max-w-[180px]">
-                      {process.cliente.email || "—"}
-                    </span>
-                  </div>
-                </div>
+              <CardContent className="space-y-2 py-4 text-sm">
+                <p><strong>Cliente:</strong> {process.cliente.nome}</p>
+                <p><strong>Responsável:</strong> {process.responsavel.nome}</p>
+                <p className="flex items-center gap-1 text-muted-foreground"><Bell className="h-3 w-3" /> Menções geram notificações internas.</p>
               </CardContent>
             </Card>
-
-            <Card>
-              <CardHeader className="border-b border-border/50">
-                <CardTitle className="text-base">Kanban</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {process.kanbanCard ? (
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Etapa atual</span>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="h-3 w-3 rounded-full"
-                          style={{
-                            backgroundColor:
-                              process.kanbanCard.etapa.cor || "#94a3b8",
-                          }}
-                        />
-                        <span className="text-sm font-medium text-foreground">
-                          {process.kanbanCard.etapa.nome}
-                        </span>
-                      </div>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Data de revisão
-                      </span>
-                      <span className="text-sm font-medium text-foreground">
-                        {process.kanbanCard.dataRevisao
-                          ? formatDate(process.kanbanCard.dataRevisao)
-                          : "—"}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground text-center py-2">
-                    Processo não está no quadro Kanban
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="border-b border-border/50">
-                <CardTitle className="text-base">Equipe</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Responsável</span>
-                    <div className="flex items-center gap-2">
-                      <Avatar size="sm">
-                        <AvatarImage src={process.responsavel.avatar || undefined} />
-                        <AvatarFallback>
-                          {getInitials(process.responsavel.nome)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm font-medium text-foreground">
-                        {process.responsavel.nome}
-                      </span>
-                    </div>
-                  </div>
-                  {process.atribuicoes.length > 0 && (
-                    <>
-                      <Separator />
-                      <div>
-                        <span className="text-sm text-muted-foreground block mb-2">
-                          Atribuídos
-                        </span>
-                        <div className="space-y-2">
-                          {process.atribuicoes.map((atribuicao) => (
-                            <div
-                              key={atribuicao.id}
-                              className="flex items-center gap-2"
-                            >
-                              <Avatar size="sm">
-                                <AvatarImage
-                                  src={
-                                    atribuicao.usuario.avatar || undefined
-                                  }
-                                />
-                                <AvatarFallback>
-                                  {getInitials(atribuicao.usuario.nome)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm text-foreground">
-                                {atribuicao.usuario.nome}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          </aside>
         </div>
       </div>
     </DashboardLayout>

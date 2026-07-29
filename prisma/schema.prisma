@@ -81,29 +81,29 @@ enum StatusEvento {
 // ============================================
 
 model Empresa {
-  id            String   @id @default(cuid())
-  nome          String
-  cnpj          String?  @unique
-  email         String?
-  telefone      String?
-  endereco      String?
-  logo          String?
-  plano         String   @default("free")
-  ativo         Boolean  @default(true)
-  metadata      Json?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id @default(cuid())
+  nome      String
+  cnpj      String?  @unique
+  email     String?
+  telefone  String?
+  endereco  String?
+  logo      String?
+  plano     String   @default("free")
+  ativo     Boolean  @default(true)
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  usuarios      Usuario[]
-  clientes      Cliente[]
-  processos     Processo[]
-  documentos    Documento[]
-  eventos       Evento[]
-  logs          Log[]
-  notificacoes  Notificacao[]
-  etapasKanban  EtapasKanban[]
-  kanbanCards   KanbanCard[]
-  cargos        Cargo[]
+  usuarios     Usuario[]
+  clientes     Cliente[]
+  processos    Processo[]
+  documentos   Documento[]
+  eventos      Evento[]
+  logs         Log[]
+  notificacoes Notificacao[]
+  etapasKanban EtapasKanban[]
+  kanbanCards  KanbanCard[]
+  cargos       Cargo[]
 
   @@map("empresas")
 }
@@ -113,16 +113,16 @@ model Empresa {
 // ============================================
 
 model Cargo {
-  id            String   @id @default(cuid())
-  empresaId     String
-  nome          String
-  permissoes    Json     @default("{}")
-  ativo         Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id         String   @id @default(cuid())
+  empresaId  String
+  nome       String
+  permissoes Json     @default("{}")
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  usuarios      Usuario[]
+  empresa  Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  usuarios Usuario[]
 
   @@unique([empresaId, nome])
   @@index([empresaId])
@@ -134,30 +134,34 @@ model Cargo {
 // ============================================
 
 model Usuario {
-  id            String    @id @default(cuid())
-  empresaId     String
-  clerkId       String?   @unique
-  nome          String
-  email         String    @unique
-  senha         String?   @db.Text
-  telefone      String?
-  avatar        String?   @db.Text
-  role          Role      @default(ADVOGADO)
-  cargoId       String?
-  ativo         Boolean   @default(true)
-  ultimoAcesso  DateTime?
-  metadata      Json?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String    @id @default(cuid())
+  empresaId    String
+  clerkId      String?   @unique
+  nome         String
+  email        String    @unique
+  senha        String?   @db.Text
+  telefone     String?
+  avatar       String?   @db.Text
+  role         Role      @default(ADVOGADO)
+  cargoId      String?
+  ativo        Boolean   @default(true)
+  ultimoAcesso DateTime?
+  metadata     Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  empresa       Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  cargo         Cargo?    @relation(fields: [cargoId], references: [id], onDelete: SetNull)
-  processos     Processo[]
-  eventos       Evento[]
-  documentos    Documento[]
-  logs          Log[]
-  atribuicoes   ProcessoAtribuicao[]
-  historicos    Historico[]
+  empresa      Empresa              @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  cargo        Cargo?               @relation(fields: [cargoId], references: [id], onDelete: SetNull)
+  processos    Processo[]
+  eventos      Evento[]
+  documentos   Documento[]
+  logs         Log[]
+  atribuicoes  ProcessoAtribuicao[]
+  historicos   Historico[]
+  sessoes      Sessao[]
+  comentarios  Comentario[]         @relation("ComentarioAutor")
+  mencoes      ComentarioMencao[]   @relation("ComentarioMencionado")
+  notificacoes Notificacao[]
 
   @@index([empresaId])
   @@index([cargoId])
@@ -169,22 +173,22 @@ model Usuario {
 // ============================================
 
 model Cliente {
-  id            String   @id @default(cuid())
-  empresaId     String
-  nome          String
-  cpfCnpj       String?
-  telefone      String?
-  email         String?
-  endereco      String?
-  observacoes   String?
-  ativo         Boolean  @default(true)
-  metadata      Json?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String   @id @default(cuid())
+  empresaId   String
+  nome        String
+  cpfCnpj     String?
+  telefone    String?
+  email       String?
+  endereco    String?
+  observacoes String?
+  ativo       Boolean  @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  processos     Processo[]
-  eventos       Evento[]
+  empresa   Empresa    @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  processos Processo[]
+  eventos   Evento[]
 
   @@index([empresaId])
   @@index([cpfCnpj])
@@ -196,30 +200,31 @@ model Cliente {
 // ============================================
 
 model Processo {
-  id              String        @id @default(cuid())
-  empresaId       String
-  clienteId       String
-  responsavelId   String
-  numeroProcesso  String?
-  tribunal        String?
-  vara            String?
-  tipoProcesso    String
-  status          StatusProcesso @default(ATIVO)
-  observacoes     String?
-  dataCadastro    DateTime      @default(now())
-  metadata        Json?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String         @id @default(cuid())
+  empresaId      String
+  clienteId      String
+  responsavelId  String
+  numeroProcesso String?
+  tribunal       String?
+  vara           String?
+  tipoProcesso   String
+  status         StatusProcesso @default(ATIVO)
+  observacoes    String?
+  dataCadastro   DateTime       @default(now())
+  metadata       Json?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
-  empresa         Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  cliente         Cliente       @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-  responsavel     Usuario       @relation(fields: [responsavelId], references: [id], onDelete: Cascade)
-  documentos      Documento[]
-  eventos         Evento[]
-  anotacoes       Anotacao[]
-  historicos      Historico[]
-  kanbanCard      KanbanCard?
-  atribuicoes     ProcessoAtribuicao[]
+  empresa     Empresa              @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  cliente     Cliente              @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  responsavel Usuario              @relation(fields: [responsavelId], references: [id], onDelete: Cascade)
+  documentos  Documento[]
+  eventos     Evento[]
+  anotacoes   Anotacao[]
+  historicos  Historico[]
+  kanbanCard  KanbanCard?
+  atribuicoes ProcessoAtribuicao[]
+  comentarios Comentario[]
 
   @@index([empresaId])
   @@index([clienteId])
@@ -232,24 +237,25 @@ model Processo {
 // ============================================
 
 model Documento {
-  id            String   @id @default(cuid())
-  empresaId     String
-  processoId    String?
-  usuarioId     String
-  nome          String
-  descricao     String?
-  tipoArquivo   TipoArquivo
-  url           String
-  conteudo      String?  @db.Text
-  tamanho       Int?
-  tamanhoKb     Int?
-  mimeType      String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String      @id @default(cuid())
+  empresaId   String
+  processoId  String?
+  usuarioId   String
+  nome        String
+  descricao   String?
+  tipoArquivo TipoArquivo
+  url         String
+  blobPath    String?     @unique
+  conteudo    String?     @db.Text
+  tamanho     Int?
+  tamanhoKb   Int?
+  mimeType    String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
-  empresa       Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  processo      Processo? @relation(fields: [processoId], references: [id], onDelete: SetNull)
-  usuario       Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  empresa  Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  processo Processo? @relation(fields: [processoId], references: [id], onDelete: SetNull)
+  usuario  Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@index([empresaId])
   @@index([processoId])
@@ -257,11 +263,29 @@ model Documento {
 }
 
 // ============================================
+// SESSÕES AUTENTICADAS
+// ============================================
+
+model Sessao {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  usuarioId String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([usuarioId])
+  @@index([expiresAt])
+  @@map("sessoes")
+}
+
+// ============================================
 // EVENTOS / AGENDA
 // ============================================
 
 model Evento {
-  id            String        @id @default(cuid())
+  id            String       @id @default(cuid())
   empresaId     String
   processoId    String?
   clienteId     String?
@@ -271,16 +295,16 @@ model Evento {
   data          DateTime
   hora          String?
   tipo          TipoEvento
-  prioridade    Prioridade    @default(MEDIA)
-  status        StatusEvento  @default(PENDENTE)
+  prioridade    Prioridade   @default(MEDIA)
+  status        StatusEvento @default(PENDENTE)
   metadata      Json?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
-  empresa       Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  processo      Processo?     @relation(fields: [processoId], references: [id], onDelete: SetNull)
-  cliente       Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
-  responsavel   Usuario       @relation(fields: [responsavelId], references: [id], onDelete: Cascade)
+  empresa     Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  processo    Processo? @relation(fields: [processoId], references: [id], onDelete: SetNull)
+  cliente     Cliente?  @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  responsavel Usuario   @relation(fields: [responsavelId], references: [id], onDelete: Cascade)
 
   @@index([empresaId])
   @@index([processoId])
@@ -294,14 +318,14 @@ model Evento {
 // ============================================
 
 model Anotacao {
-  id            String   @id @default(cuid())
-  processoId    String
-  titulo        String?
-  conteudo      String
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id         String   @id @default(cuid())
+  processoId String
+  titulo     String?
+  conteudo   String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  processo      Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  processo Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
 
   @@index([processoId])
   @@map("anotacoes")
@@ -312,20 +336,54 @@ model Anotacao {
 // ============================================
 
 model Historico {
-  id            String   @id @default(cuid())
-  processoId    String
-  usuarioId     String?
-  descricao     String
-  tipo          String?
-  detalhes      Json?
-  createdAt     DateTime @default(now())
+  id         String   @id @default(cuid())
+  processoId String
+  usuarioId  String?
+  descricao  String
+  tipo       String?
+  detalhes   Json?
+  createdAt  DateTime @default(now())
 
-  processo      Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
-  usuario       Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  processo Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  usuario  Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
 
   @@index([processoId])
   @@index([usuarioId])
   @@map("historicos")
+}
+
+// ============================================
+// COMENTÁRIOS E MENÇÕES
+// ============================================
+
+model Comentario {
+  id         String   @id @default(cuid())
+  processoId String
+  autorId    String
+  conteudo   String   @db.Text
+  createdAt  DateTime @default(now())
+
+  processo Processo           @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  autor    Usuario            @relation("ComentarioAutor", fields: [autorId], references: [id], onDelete: Cascade)
+  mencoes  ComentarioMencao[]
+
+  @@index([processoId, createdAt])
+  @@index([autorId])
+  @@map("comentarios")
+}
+
+model ComentarioMencao {
+  id           String   @id @default(cuid())
+  comentarioId String
+  usuarioId    String
+  createdAt    DateTime @default(now())
+
+  comentario Comentario @relation(fields: [comentarioId], references: [id], onDelete: Cascade)
+  usuario    Usuario    @relation("ComentarioMencionado", fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([comentarioId, usuarioId])
+  @@index([usuarioId])
+  @@map("comentario_mencoes")
 }
 
 // ============================================
@@ -344,8 +402,8 @@ model EtapasKanban {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  empresa         Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  cards           KanbanCard[]
+  empresa Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  cards   KanbanCard[]
 
   @@unique([empresaId, nome])
   @@index([empresaId])
@@ -357,20 +415,20 @@ model EtapasKanban {
 // ============================================
 
 model KanbanCard {
-  id            String   @id @default(cuid())
-  empresaId     String
-  processoId    String   @unique
-  etapaId       String
-  dataRevisao   DateTime?
-  hora          String?  // HH:mm — opcional
-  observacoes   String?  @db.Text
-  ordem         Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String    @id @default(cuid())
+  empresaId   String
+  processoId  String    @unique
+  etapaId     String
+  dataRevisao DateTime?
+  hora        String? // HH:mm — opcional
+  observacoes String?   @db.Text
+  ordem       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  empresa       Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  processo      Processo    @relation(fields: [processoId], references: [id], onDelete: Cascade)
-  etapa         EtapasKanban @relation(fields: [etapaId], references: [id], onDelete: Cascade)
+  empresa  Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  processo Processo     @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  etapa    EtapasKanban @relation(fields: [etapaId], references: [id], onDelete: Cascade)
 
   @@index([empresaId])
   @@index([etapaId])
@@ -383,13 +441,13 @@ model KanbanCard {
 // ============================================
 
 model ProcessoAtribuicao {
-  id            String   @id @default(cuid())
-  processoId    String
-  usuarioId     String
-  createdAt     DateTime @default(now())
+  id         String   @id @default(cuid())
+  processoId String
+  usuarioId  String
+  createdAt  DateTime @default(now())
 
-  processo      Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
-  usuario       Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  processo Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  usuario  Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@unique([processoId, usuarioId])
   @@index([processoId])
@@ -402,18 +460,18 @@ model ProcessoAtribuicao {
 // ============================================
 
 model Log {
-  id            String    @id @default(cuid())
-  empresaId     String?
-  usuarioId     String?
-  acao          String
-  entidade      String?
-  entidadeId    String?
-  detalhes      Json?
-  ipAddress     String?
-  createdAt     DateTime  @default(now())
+  id         String   @id @default(cuid())
+  empresaId  String?
+  usuarioId  String?
+  acao       String
+  entidade   String?
+  entidadeId String?
+  detalhes   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
 
-  empresa       Empresa?  @relation(fields: [empresaId], references: [id], onDelete: SetNull)
-  usuario       Usuario?  @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  empresa Empresa? @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
 
   @@index([empresaId])
   @@index([usuarioId])
@@ -426,18 +484,19 @@ model Log {
 // ============================================
 
 model Notificacao {
-  id            String   @id @default(cuid())
-  empresaId     String
-  usuarioId     String?
-  titulo        String
-  mensagem      String?
-  lida          Boolean  @default(false)
-  tipo          String?
-  link          String?
-  metadata      Json?
-  createdAt     DateTime @default(now())
+  id        String   @id @default(cuid())
+  empresaId String
+  usuarioId String?
+  titulo    String
+  mensagem  String?
+  lida      Boolean  @default(false)
+  tipo      String?
+  link      String?
+  metadata  Json?
+  createdAt DateTime @default(now())
 
-  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresa Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 
   @@index([empresaId])
   @@index([usuarioId])
@@ -449,16 +508,16 @@ model Notificacao {
 // ============================================
 
 model Plano {
-  id            String   @id @default(cuid())
-  nome          String
-  descricao     String?
-  preco         Float
-  limiteUsuarios Int
-  limiteProcessos Int?
+  id                  String   @id @default(cuid())
+  nome                String
+  descricao           String?
+  preco               Float
+  limiteUsuarios      Int
+  limiteProcessos     Int?
   limiteArmazenamento Int?
-  ativo         Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  ativo               Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   @@map("planos")
 }
@@ -468,12 +527,12 @@ model Plano {
 // ============================================
 
 model TipoProcessoCustom {
-  id            String   @id @default(cuid())
-  empresaId     String
-  valor         String
-  label         String
-  ativo         Boolean  @default(true)
-  createdAt     DateTime @default(now())
+  id        String   @id @default(cuid())
+  empresaId String
+  valor     String
+  label     String
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
 
   @@unique([empresaId, valor])
   @@index([empresaId])

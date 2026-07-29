@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { createSession } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
       where: { id: user.id },
       data: { ultimoAcesso: new Date() },
     });
+    await createSession(user.id);
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { senha: _, ...userWithoutPassword } = user;

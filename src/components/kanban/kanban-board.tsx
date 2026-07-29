@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Loader2 } from "lucide-react";
 import { KanbanColumn } from "./kanban-column";
-import { TaskDetailModal } from "./task-detail-modal";
 
 interface Etapa {
   id: string;
@@ -25,6 +25,7 @@ interface Etapa {
 
 interface Card {
   id: string;
+  processoId: string;
   numeroProcesso: string;
   nomeCliente: string;
   responsavel: string | null;
@@ -59,10 +60,9 @@ export function KanbanBoard({
   filters,
 }: KanbanBoardProps) {
   const [etapas, setEtapas] = useState<Etapa[]>([]);
+  const router = useRouter();
   const [cards, setCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
   const [editEtapa, setEditEtapa] = useState<Etapa | null>(null);
   const [editNome, setEditNome] = useState("");
   const [editCor, setEditCor] = useState("#6366f1");
@@ -101,6 +101,7 @@ export function KanbanBoard({
         setCards(
           cardsData.map((c: Record<string, unknown>) => ({
             id: c.id,
+            processoId: (c.processo as Record<string, unknown>)?.id as string,
             numeroProcesso: (c.processo as Record<string, unknown>)?.numeroProcesso ?? null,
             nomeCliente: ((c.processo as Record<string, unknown>)?.cliente as Record<string, unknown>)?.nome ?? null,
             responsavel: ((c.processo as Record<string, unknown>)?.responsavel as Record<string, unknown>)?.nome ?? null,
@@ -126,8 +127,7 @@ export function KanbanBoard({
   }, [fetchData]);
 
   const handleCardClick = (card: Card) => {
-    setSelectedCardId(card.id);
-    setDetailOpen(true);
+    router.push(`/processos/${card.processoId}`);
   };
 
   const handleDrop = async (cardId: string, etapaId: string) => {
@@ -299,15 +299,6 @@ export function KanbanBoard({
             />
           ))}
       </div>
-
-      <TaskDetailModal
-        cardId={selectedCardId}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        empresaId={empresaId}
-        usuarioId={usuarioId}
-        isAdmin={isAdmin}
-      />
 
       <Dialog open={!!editEtapa} onOpenChange={(open) => !open && setEditEtapa(null)}>
         <DialogContent className="sm:max-w-[400px]">

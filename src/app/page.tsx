@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { setUser } = useAuth();
   const [email, setEmail] = useState("teste@agentejuridico");
   const [senha, setSenha] = useState("123456");
   const [error, setError] = useState("");
@@ -31,7 +33,7 @@ export default function LoginPage() {
         return;
       }
 
-      localStorage.setItem("agente-juridico-user", JSON.stringify(data));
+      setUser(data);
       router.push("/dashboard");
     } catch {
       setError("Erro ao conectar com o servidor");

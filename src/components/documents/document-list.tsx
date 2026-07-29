@@ -19,8 +19,8 @@ interface Document {
   nome: string;
   mimeType: string;
   tamanho: number;
-  criadoEm: string;
-  criadoPor: { id: string; nome: string };
+  createdAt: string;
+  usuario: { id: string; nome: string };
 }
 
 interface DocumentListProps {
@@ -72,7 +72,7 @@ export function DocumentList({
     setLoading(true);
     try {
       const response = await fetch(
-        `/api/documentos?empresaId=${empresaId}&processoId=${processoId}`
+        `/api/documentos?processoId=${processoId}`
       );
       if (response.ok) {
         const data = await response.json();
@@ -160,10 +160,10 @@ export function DocumentList({
                   {formatFileSize(doc.tamanho)}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {doc.criadoPor?.nome}
+                    {doc.usuario?.nome}
                 </TableCell>
                 <TableCell className="text-muted-foreground">
-                  {formatDate(doc.criadoEm)}
+                  {formatDate(doc.createdAt)}
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>

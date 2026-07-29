@@ -16,9 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Filter, X } from "lucide-react";
-
-const EMPRESA_ID = "empresa-1";
-const USUARIO_ID = "user-1";
+import { useAuth } from "@/contexts/auth-context";
 
 const TIPOS_PROCESSO = [
   { value: "CIVIL", label: "Cível" },
@@ -40,6 +38,9 @@ interface Usuario {
 }
 
 export default function GestaoProcessosPage() {
+  const { user } = useAuth();
+  const empresaId = user?.empresaId || "";
+  const usuarioId = user?.id || "";
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [kanbanKey, setKanbanKey] = useState(0);
   const [showFilters, setShowFilters] = useState(false);
@@ -53,7 +54,8 @@ export default function GestaoProcessosPage() {
 
   const fetchUsuarios = useCallback(async () => {
     try {
-      const res = await fetch(`/api/usuarios?empresaId=${EMPRESA_ID}`);
+      if (!empresaId) return;
+      const res = await fetch(`/api/usuarios?empresaId=${empresaId}`);
       if (res.ok) {
         const data = await res.json();
         setUsuarios(data);
@@ -61,7 +63,7 @@ export default function GestaoProcessosPage() {
     } catch {
       // silent
     }
-  }, []);
+  }, [empresaId]);
 
   useEffect(() => {
     fetchUsuarios();
@@ -195,9 +197,9 @@ export default function GestaoProcessosPage() {
 
         <KanbanBoard
           key={kanbanKey}
-          empresaId={EMPRESA_ID}
-          usuarioId={USUARIO_ID}
-          isAdmin
+          empresaId={empresaId}
+          usuarioId={usuarioId}
+          isAdmin={user?.role === "SUPER_ADMIN" || user?.role === "ADMINISTRADOR"}
           filters={{
             dataInicio: filterDataInicio || undefined,
             dataFim: filterDataFim || undefined,

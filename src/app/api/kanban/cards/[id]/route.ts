@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { canAccessProcess, getSessionUser } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
@@ -7,6 +8,8 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
     const card = await prisma.kanbanCard.findUnique({
       where: { id },
@@ -35,6 +38,9 @@ export async function GET(
         { status: 404 }
       );
     }
+    if (!(await canAccessProcess(card.processoId, user))) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    }
 
     const equipe = card.processo.atribuicoes.map((a) => ({
       id: a.usuario.id,
@@ -57,6 +63,8 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     const body = await request.json();
     const { observacoes, dataRevisao, hora, usuarioId } = body;
 
@@ -72,6 +80,9 @@ export async function PUT(
         { error: "Card não encontrado" },
         { status: 404 }
       );
+    }
+    if (!(await canAccessProcess(existing.processoId, user))) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     }
 
     const updatedCard = await prisma.kanbanCard.update({
@@ -94,7 +105,7 @@ export async function PUT(
       await prisma.historico.create({
         data: {
           processoId: existing.processoId,
-          usuarioId: usuarioId || null,
+          usuarioId: user.id,
           descricao: `Card atualizado: ${changes.join(" e ")}`,
           tipo: "atualizacao_card",
         },

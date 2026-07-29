@@ -22,6 +22,7 @@ interface DocumentData {
   mimeType: string;
   tamanho: number;
   url: string;
+  downloadUrl: string;
 }
 
 function formatFileSize(bytes: number): string {
@@ -122,7 +123,7 @@ export function DocumentPreview({
         <p className="text-sm text-muted-foreground mb-4">
           {formatFileSize(document.tamanho)}
         </p>
-        <a href={document.url} download={document.nome}>
+        <a href={document.downloadUrl}>
           <Button>
             <Download className="h-4 w-4" />
             Baixar arquivo

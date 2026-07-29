@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { canAccessProcess, getSessionUser } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
@@ -7,6 +8,11 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (!(await canAccessProcess(id, user))) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    }
 
     const processo = await prisma.processo.findUnique({
       where: { id },
@@ -55,6 +61,11 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (!(await canAccessProcess(id, user))) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    }
     const body = await request.json();
 
     const existing = await prisma.processo.findUnique({
@@ -79,25 +90,57 @@ export async function PUT(
       observacoes,
     } = body;
 
-    const processo = await prisma.processo.update({
-      where: { id },
-      data: {
-        ...(clienteId !== undefined && { clienteId }),
-        ...(responsavelId !== undefined && { responsavelId }),
-        ...(numeroProcesso !== undefined && { numeroProcesso }),
-        ...(tribunal !== undefined && { tribunal }),
-        ...(vara !== undefined && { vara }),
-        ...(tipoProcesso !== undefined && { tipoProcesso }),
-        ...(status !== undefined && { status }),
-        ...(observacoes !== undefined && { observacoes }),
-      },
-      include: {
-        cliente: true,
-        responsavel: true,
-        kanbanCard: {
-          include: { etapa: true },
+    const changes: Record<string, { antes: unknown; depois: unknown }> = {};
+    const candidates = {
+      clienteId,
+      responsavelId,
+      numeroProcesso,
+      tribunal,
+      vara,
+      tipoProcesso,
+      status,
+      observacoes,
+    };
+    for (const [field, value] of Object.entries(candidates)) {
+      if (value !== undefined && existing[field as keyof typeof existing] !== value) {
+        changes[field] = {
+          antes: existing[field as keyof typeof existing],
+          depois: value,
+        };
+      }
+    }
+
+    const processo = await prisma.$transaction(async (tx) => {
+      const updated = await tx.processo.update({
+        where: { id },
+        data: {
+          ...(clienteId !== undefined && { clienteId }),
+          ...(responsavelId !== undefined && { responsavelId }),
+          ...(numeroProcesso !== undefined && { numeroProcesso }),
+          ...(tribunal !== undefined && { tribunal }),
+          ...(vara !== undefined && { vara }),
+          ...(tipoProcesso !== undefined && { tipoProcesso }),
+          ...(status !== undefined && { status }),
+          ...(observacoes !== undefined && { observacoes }),
         },
-      },
+        include: {
+          cliente: true,
+          responsavel: true,
+          kanbanCard: { include: { etapa: true } },
+        },
+      });
+      if (Object.keys(changes).length > 0) {
+        await tx.historico.create({
+          data: {
+            processoId: id,
+            usuarioId: user.id,
+            descricao: `Processo atualizado: ${Object.keys(changes).join(", ")}`,
+            tipo: "PROCESSO_ATUALIZADO",
+            detalhes: JSON.parse(JSON.stringify(changes)),
+          },
+        });
+      }
+      return updated;
     });
 
     return NextResponse.json(processo);
