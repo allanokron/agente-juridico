@@ -1,0 +1,481 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Role {
+  SUPER_ADMIN
+  ADMINISTRADOR
+  ADVOGADO
+  ASSISTENTE
+  ESTAGIARIO
+}
+
+enum TipoProcesso {
+  CIVIL
+  CRIMINAL
+  TRABALHISTA
+  ADMINISTRATIVO
+  TRIBUTARIO
+  FAMILIAR
+  EMPRESARIAL
+  CONSUMIDOR
+  AMBIENTAL
+  PREVIDENCIARIO
+  OUTRO
+}
+
+enum StatusProcesso {
+  ATIVO
+  SUSPENSO
+  ARQUIVADO
+  EM_ANDAMENTO
+  FINALIZADO
+  GANHO
+  PERDIDO
+}
+
+enum TipoArquivo {
+  PDF
+  IMAGEM
+  WORD
+  EXCEL
+  ZIP
+  OUTRO
+}
+
+enum TipoEvento {
+  AUDIENCIA
+  PRAZO
+  REUNIAO
+  PROTOCOLO
+  LEMBRETE
+  PERSONALIZADO
+}
+
+enum Prioridade {
+  BAIXA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum StatusEvento {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDO
+  CANCELADO
+  REAGENDADO
+}
+
+// ============================================
+// MULTI TENANT - EMPRESAS/ESCRITÓRIOS
+// ============================================
+
+model Empresa {
+  id            String   @id @default(cuid())
+  nome          String
+  cnpj          String?  @unique
+  email         String?
+  telefone      String?
+  endereco      String?
+  logo          String?
+  plano         String   @default("free")
+  ativo         Boolean  @default(true)
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  usuarios      Usuario[]
+  clientes      Cliente[]
+  processos     Processo[]
+  documentos    Documento[]
+  eventos       Evento[]
+  logs          Log[]
+  notificacoes  Notificacao[]
+  etapasKanban  EtapasKanban[]
+  kanbanCards   KanbanCard[]
+  cargos        Cargo[]
+
+  @@map("empresas")
+}
+
+// ============================================
+// CARGOS (customizados por escritório)
+// ============================================
+
+model Cargo {
+  id            String   @id @default(cuid())
+  empresaId     String
+  nome          String
+  permissoes    Json     @default("{}")
+  ativo         Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  usuarios      Usuario[]
+
+  @@unique([empresaId, nome])
+  @@index([empresaId])
+  @@map("cargos")
+}
+
+// ============================================
+// USUÁRIOS
+// ============================================
+
+model Usuario {
+  id            String    @id @default(cuid())
+  empresaId     String
+  clerkId       String?   @unique
+  nome          String
+  email         String    @unique
+  senha         String?   @db.Text
+  telefone      String?
+  avatar        String?   @db.Text
+  role          Role      @default(ADVOGADO)
+  cargoId       String?
+  ativo         Boolean   @default(true)
+  ultimoAcesso  DateTime?
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  empresa       Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  cargo         Cargo?    @relation(fields: [cargoId], references: [id], onDelete: SetNull)
+  processos     Processo[]
+  eventos       Evento[]
+  documentos    Documento[]
+  logs          Log[]
+  atribuicoes   ProcessoAtribuicao[]
+  historicos    Historico[]
+
+  @@index([empresaId])
+  @@index([cargoId])
+  @@map("usuarios")
+}
+
+// ============================================
+// CLIENTES
+// ============================================
+
+model Cliente {
+  id            String   @id @default(cuid())
+  empresaId     String
+  nome          String
+  cpfCnpj       String?
+  telefone      String?
+  email         String?
+  endereco      String?
+  observacoes   String?
+  ativo         Boolean  @default(true)
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  processos     Processo[]
+  eventos       Evento[]
+
+  @@index([empresaId])
+  @@index([cpfCnpj])
+  @@map("clientes")
+}
+
+// ============================================
+// PROCESSOS
+// ============================================
+
+model Processo {
+  id              String        @id @default(cuid())
+  empresaId       String
+  clienteId       String
+  responsavelId   String
+  numeroProcesso  String?
+  tribunal        String?
+  vara            String?
+  tipoProcesso    String
+  status          StatusProcesso @default(ATIVO)
+  observacoes     String?
+  dataCadastro    DateTime      @default(now())
+  metadata        Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  empresa         Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  cliente         Cliente       @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  responsavel     Usuario       @relation(fields: [responsavelId], references: [id], onDelete: Cascade)
+  documentos      Documento[]
+  eventos         Evento[]
+  anotacoes       Anotacao[]
+  historicos      Historico[]
+  kanbanCard      KanbanCard?
+  atribuicoes     ProcessoAtribuicao[]
+
+  @@index([empresaId])
+  @@index([clienteId])
+  @@index([responsavelId])
+  @@map("processos")
+}
+
+// ============================================
+// DOCUMENTOS
+// ============================================
+
+model Documento {
+  id            String   @id @default(cuid())
+  empresaId     String
+  processoId    String?
+  usuarioId     String
+  nome          String
+  descricao     String?
+  tipoArquivo   TipoArquivo
+  url           String
+  conteudo      String?  @db.Text
+  tamanho       Int?
+  tamanhoKb     Int?
+  mimeType      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  empresa       Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  processo      Processo? @relation(fields: [processoId], references: [id], onDelete: SetNull)
+  usuario       Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId])
+  @@index([processoId])
+  @@map("documentos")
+}
+
+// ============================================
+// EVENTOS / AGENDA
+// ============================================
+
+model Evento {
+  id            String        @id @default(cuid())
+  empresaId     String
+  processoId    String?
+  clienteId     String?
+  responsavelId String
+  titulo        String
+  descricao     String?
+  data          DateTime
+  hora          String?
+  tipo          TipoEvento
+  prioridade    Prioridade    @default(MEDIA)
+  status        StatusEvento  @default(PENDENTE)
+  metadata      Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  empresa       Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  processo      Processo?     @relation(fields: [processoId], references: [id], onDelete: SetNull)
+  cliente       Cliente?      @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+  responsavel   Usuario       @relation(fields: [responsavelId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId])
+  @@index([processoId])
+  @@index([responsavelId])
+  @@index([data])
+  @@map("eventos")
+}
+
+// ============================================
+// ANOTAÇÕES
+// ============================================
+
+model Anotacao {
+  id            String   @id @default(cuid())
+  processoId    String
+  titulo        String?
+  conteudo      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  processo      Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
+
+  @@index([processoId])
+  @@map("anotacoes")
+}
+
+// ============================================
+// HISTÓRICO
+// ============================================
+
+model Historico {
+  id            String   @id @default(cuid())
+  processoId    String
+  usuarioId     String?
+  descricao     String
+  tipo          String?
+  detalhes      Json?
+  createdAt     DateTime @default(now())
+
+  processo      Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  usuario       Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([processoId])
+  @@index([usuarioId])
+  @@map("historicos")
+}
+
+// ============================================
+// KANBAN - ETAPAS (globais por escritório)
+// ============================================
+
+model EtapasKanban {
+  id              String   @id @default(cuid())
+  empresaId       String
+  nome            String
+  cor             String?
+  ordem           Int
+  fixa            Boolean  @default(false)
+  obrigatorioData Boolean  @default(true)
+  ativo           Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  empresa         Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  cards           KanbanCard[]
+
+  @@unique([empresaId, nome])
+  @@index([empresaId])
+  @@map("etapas_kanban")
+}
+
+// ============================================
+// KANBAN - CARDS (processos no board)
+// ============================================
+
+model KanbanCard {
+  id            String   @id @default(cuid())
+  empresaId     String
+  processoId    String   @unique
+  etapaId       String
+  dataRevisao   DateTime?
+  hora          String?  // HH:mm — opcional
+  observacoes   String?  @db.Text
+  ordem         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  empresa       Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  processo      Processo    @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  etapa         EtapasKanban @relation(fields: [etapaId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId])
+  @@index([etapaId])
+  @@index([processoId])
+  @@map("kanban_cards")
+}
+
+// ============================================
+// PROCESSO - ATRIBUIÇÕES
+// ============================================
+
+model ProcessoAtribuicao {
+  id            String   @id @default(cuid())
+  processoId    String
+  usuarioId     String
+  createdAt     DateTime @default(now())
+
+  processo      Processo @relation(fields: [processoId], references: [id], onDelete: Cascade)
+  usuario       Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([processoId, usuarioId])
+  @@index([processoId])
+  @@index([usuarioId])
+  @@map("processo_atribuicoes")
+}
+
+// ============================================
+// LOGS
+// ============================================
+
+model Log {
+  id            String    @id @default(cuid())
+  empresaId     String?
+  usuarioId     String?
+  acao          String
+  entidade      String?
+  entidadeId    String?
+  detalhes      Json?
+  ipAddress     String?
+  createdAt     DateTime  @default(now())
+
+  empresa       Empresa?  @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  usuario       Usuario?  @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([empresaId])
+  @@index([usuarioId])
+  @@index([createdAt])
+  @@map("logs")
+}
+
+// ============================================
+// NOTIFICAÇÕES
+// ============================================
+
+model Notificacao {
+  id            String   @id @default(cuid())
+  empresaId     String
+  usuarioId     String?
+  titulo        String
+  mensagem      String?
+  lida          Boolean  @default(false)
+  tipo          String?
+  link          String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId])
+  @@index([usuarioId])
+  @@map("notificacoes")
+}
+
+// ============================================
+// PLANOS
+// ============================================
+
+model Plano {
+  id            String   @id @default(cuid())
+  nome          String
+  descricao     String?
+  preco         Float
+  limiteUsuarios Int
+  limiteProcessos Int?
+  limiteArmazenamento Int?
+  ativo         Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("planos")
+}
+
+// ============================================
+// TIPOS DE PROCESSO CUSTOMIZADOS
+// ============================================
+
+model TipoProcessoCustom {
+  id            String   @id @default(cuid())
+  empresaId     String
+  valor         String
+  label         String
+  ativo         Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@unique([empresaId, valor])
+  @@index([empresaId])
+  @@map("tipos_processo_custom")
+}
