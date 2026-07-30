@@ -23,7 +23,7 @@ export default async function SignInPage({ params }: SignInPageProps) {
 
         {isInitialStep && (
           <Link
-            href="/entrar/forgot-password"
+            href="/recuperar-senha"
             className="rounded-md px-3 py-2 text-sm font-semibold text-violet-300 underline-offset-4 transition-colors hover:text-violet-200 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-400"
           >
             Esqueci minha senha
