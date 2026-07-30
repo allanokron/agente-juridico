@@ -33,7 +33,6 @@ export async function POST(
       masterNome: empresa.masterUser.nome,
       masterEmail: empresa.masterUser.email,
       masterTelefone: empresa.masterUser.telefone,
-      origin: request.nextUrl.origin,
       adminId: admin.id,
     });
     return NextResponse.json(result);

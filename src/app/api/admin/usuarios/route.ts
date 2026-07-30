@@ -1,6 +1,7 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { getInvitationRedirectUrl } from "@/lib/app-url";
 import { getSuperAdmin } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
       emailAddress: email,
       notify: true,
       expiresInDays: 30,
-      redirectUrl: `${request.nextUrl.origin}/cadastro`,
+      redirectUrl: getInvitationRedirectUrl(),
       publicMetadata: { appUserId: usuario.id, empresaId: data.empresaId },
     });
     const invited = await prisma.usuario.update({

@@ -53,7 +53,6 @@ export async function POST(request: NextRequest) {
   try {
     const empresa = await provisionarEmpresa({
       ...parsed.data,
-      origin: request.nextUrl.origin,
       adminId: admin.id,
     });
     return NextResponse.json(empresa, { status: 201 });

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { clerkClient } from "@clerk/nextjs/server";
+import { getInvitationRedirectUrl } from "@/lib/app-url";
 import { prisma } from "@/lib/prisma";
 
 type ProvisionInput = {
@@ -13,7 +14,6 @@ type ProvisionInput = {
   masterNome: string;
   masterEmail: string;
   masterTelefone?: string | null;
-  origin: string;
   adminId: string;
 };
 
@@ -142,7 +142,7 @@ export async function provisionarEmpresa(input: ProvisionInput) {
       emailAddress: empresa.masterUser.email,
       expiresInDays: 30,
       notify: true,
-      redirectUrl: `${input.origin}/cadastro`,
+      redirectUrl: getInvitationRedirectUrl(),
       publicMetadata: {
         appUserId: empresa.masterUser.id,
         empresaId: empresa.id,

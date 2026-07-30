@@ -1,5 +1,6 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
+import { getInvitationRedirectUrl } from "@/lib/app-url";
 import { getSessionUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -38,7 +39,7 @@ export async function POST(
       expiresInDays: 30,
       notify: true,
       ignoreExisting: true,
-      redirectUrl: `${request.nextUrl.origin}/cadastro`,
+      redirectUrl: getInvitationRedirectUrl(),
       publicMetadata: {
         appUserId: usuario.id,
         empresaId: sessionUser.empresaId,

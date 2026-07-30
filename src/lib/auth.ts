@@ -65,6 +65,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       data: {
         clerkId: userId,
         ativo: true,
+        clerkInvitationId: null,
         ultimoAcesso: new Date(),
         avatar: clerkUser.imageUrl || undefined,
       },
