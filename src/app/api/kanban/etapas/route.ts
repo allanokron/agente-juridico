@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser, isAdmin } from "@/lib/auth";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const empresaId = searchParams.get("empresaId");
-
-    if (!empresaId) {
-      return NextResponse.json(
-        { error: "empresaId é obrigatório" },
-        { status: 400 }
-      );
-    }
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    const empresaId = user.empresaId;
 
     const etapas = await prisma.etapasKanban.findMany({
       where: { empresaId, ativo: true },
@@ -35,27 +30,18 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (!isAdmin(user)) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     const body = await request.json();
-    const { empresaId, nome, cor, ordem, usuarioId } = body;
+    const { nome, cor, ordem } = body;
+    const empresaId = user.empresaId;
 
-    if (!empresaId || !nome || ordem === undefined) {
+    if (!nome || ordem === undefined) {
       return NextResponse.json(
-        { error: "empresaId, nome e ordem são obrigatórios" },
+        { error: "Nome e ordem são obrigatórios" },
         { status: 400 }
       );
-    }
-
-    if (usuarioId) {
-      const usuario = await prisma.usuario.findUnique({
-        where: { id: usuarioId },
-      });
-
-      if (!usuario || !["SUPER_ADMIN", "ADMINISTRADOR"].includes(usuario.role)) {
-        return NextResponse.json(
-          { error: "Apenas administradores podem criar etapas" },
-          { status: 403 }
-        );
-      }
     }
 
     const etapa = await prisma.etapasKanban.create({

@@ -1,20 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser, isAdmin } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     const body = await request.json();
-    const { usuarioId, avatar } = body;
+    const { avatar } = body;
+    const usuarioId = body.usuarioId || sessionUser.id;
 
-    if (!usuarioId || !avatar) {
+    if (!avatar) {
       return NextResponse.json(
-        { error: "usuarioId e avatar são obrigatórios" },
+        { error: "Avatar é obrigatório" },
         { status: 400 }
       );
     }
 
-    const usuario = await prisma.usuario.findUnique({
-      where: { id: usuarioId },
+    if (usuarioId !== sessionUser.id && !isAdmin(sessionUser)) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    }
+    const usuario = await prisma.usuario.findFirst({
+      where: { id: usuarioId, empresaId: sessionUser.empresaId },
     });
 
     if (!usuario) {

@@ -13,6 +13,7 @@ import {
   Briefcase,
   LogOut,
   Columns,
+  UserRoundSearch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/contexts/sidebar-context";
@@ -39,6 +40,7 @@ const navItems: NavItem[] = [
 
 const adminNavItems: NavItem[] = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, group: "Principal" },
+  { label: "Leads", href: "/admin/leads", icon: UserRoundSearch, group: "Comercial" },
   { label: "Empresas", href: "/admin/empresas", icon: Briefcase, group: "Gestão" },
   { label: "Usuarios", href: "/admin/usuarios", icon: Users, group: "Gestão" },
   { label: "Planos", href: "/admin/planos", icon: FileText, group: "Gestão" },

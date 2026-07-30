@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
@@ -10,6 +11,10 @@ export async function GET() {
         { status: 401 }
       );
     }
+    await prisma.usuario.update({
+      where: { id: user.id },
+      data: { ultimoAcesso: new Date() },
+    });
     return NextResponse.json(user);
   } catch (error) {
     console.error("Erro ao buscar usuário:", error);

@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser, isAdmin } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     const { id } = await params;
 
-    const cargo = await prisma.cargo.findUnique({
-      where: { id },
+    const cargo = await prisma.cargo.findFirst({
+      where: { id, empresaId: user.empresaId },
       include: {
         usuarios: {
           select: { id: true, nome: true, email: true, role: true, ativo: true },
@@ -39,11 +42,14 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (!isAdmin(user)) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     const { id } = await params;
     const body = await request.json();
     const { nome, permissoes } = body;
 
-    const existing = await prisma.cargo.findUnique({ where: { id } });
+    const existing = await prisma.cargo.findFirst({ where: { id, empresaId: user.empresaId } });
 
     if (!existing) {
       return NextResponse.json(
@@ -80,10 +86,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (!isAdmin(user)) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     const { id } = await params;
 
-    const existing = await prisma.cargo.findUnique({
-      where: { id },
+    const existing = await prisma.cargo.findFirst({
+      where: { id, empresaId: user.empresaId },
       include: {
         _count: {
           select: { usuarios: true },

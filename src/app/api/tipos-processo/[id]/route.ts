@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser, isAdmin } from "@/lib/auth";
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (!isAdmin(user)) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     const { id } = await params;
 
-    const tipo = await prisma.tipoProcessoCustom.findUnique({
-      where: { id },
+    const tipo = await prisma.tipoProcessoCustom.findFirst({
+      where: { id, empresaId: user.empresaId },
     });
 
     if (!tipo) {

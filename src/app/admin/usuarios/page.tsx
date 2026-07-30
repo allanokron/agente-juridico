@@ -1,201 +1,116 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Loader2, Plus, Search, UserRound } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
-import { PageHeader } from "@/components/shared/page-header";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { Users, Plus, Search, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
-interface User {
+type Usuario = {
   id: string;
   nome: string;
   email: string;
-  empresa: string;
   role: string;
-  status: string;
-  ultimoAcesso: string;
-  iniciais: string;
-}
+  ativo: boolean;
+  clerkId?: string | null;
+  clerkInvitationId?: string | null;
+  ultimoAcesso?: string | null;
+  empresa: { id: string; nome: string; ativo: boolean };
+};
+type Empresa = { id: string; nome: string; ativo: boolean };
 
-const mockUsers: User[] = [
-  {
-    id: "1",
-    nome: "Dr. João Silva",
-    email: "joao@silva.com",
-    empresa: "Silva & Associados",
-    role: "Administrador",
-    status: "Ativo",
-    ultimoAcesso: "Hoje, 09:30",
-    iniciais: "JS",
-  },
-  {
-    id: "2",
-    nome: "Dra. Ana Santos",
-    email: "ana@silva.com",
-    empresa: "Silva & Associados",
-    role: "Advogado",
-    status: "Ativo",
-    ultimoAcesso: "Hoje, 08:15",
-    iniciais: "AS",
-  },
-  {
-    id: "3",
-    nome: "Pedro Costa",
-    email: "pedro@costa.com",
-    empresa: "Advocacia Costa",
-    role: "Administrador",
-    status: "Ativo",
-    ultimoAcesso: "Ontem, 17:45",
-    iniciais: "PC",
-  },
-  {
-    id: "4",
-    nome: "Maria Oliveira",
-    email: "maria@oliveira.com",
-    empresa: "Oliveira Advocacia",
-    role: "Advogado",
-    status: "Ativo",
-    ultimoAcesso: "15/01/2026",
-    iniciais: "MO",
-  },
-];
+export default function AdminUsuariosPage() {
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({ empresaId: "", nome: "", email: "", telefone: "", role: "ASSISTENTE" });
 
-export default function UsersPage() {
-  const [users] = useState<User[]>(mockUsers);
-  const [searchTerm, setSearchTerm] = useState("");
+  async function load() {
+    const [usersResponse, companiesResponse] = await Promise.all([
+      fetch("/api/admin/usuarios"),
+      fetch("/api/admin/empresas"),
+    ]);
+    setUsuarios(await usersResponse.json());
+    setEmpresas(await companiesResponse.json());
+  }
+  useEffect(() => {
+    void Promise.all([
+      fetch("/api/admin/usuarios").then((response) => response.json()),
+      fetch("/api/admin/empresas").then((response) => response.json()),
+    ]).then(([users, companies]) => {
+      setUsuarios(users);
+      setEmpresas(companies);
+    });
+  }, []);
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.empresa.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    const term = search.toLowerCase();
+    return usuarios.filter((user) => `${user.nome} ${user.email} ${user.empresa.nome}`.toLowerCase().includes(term));
+  }, [usuarios, search]);
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case "Administrador":
-        return "bg-purple-100 text-purple-700";
-      case "Advogado":
-        return "bg-blue-100 text-blue-700";
-      case "Assistente":
-        return "bg-emerald-100 text-emerald-700";
-      case "Estagiário":
-        return "bg-amber-100 text-amber-700";
-      default:
-        return "bg-slate-100 text-slate-600";
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    const response = await fetch("/api/admin/usuarios", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      setError(result.error || "Falha ao enviar convite");
+      setSaving(false);
+      return;
     }
-  };
+    setOpen(false);
+    setForm({ empresaId: "", nome: "", email: "", telefone: "", role: "ASSISTENTE" });
+    setSaving(false);
+    await load();
+  }
 
   return (
     <DashboardLayout isAdmin>
       <div className="space-y-6">
-        <PageHeader
-          title="Usuários"
-          description="Gerencie todos os usuários da plataforma"
-          action={{
-            label: "Novo Usuário",
-            onClick: () => {},
-            icon: <Plus className="h-4 w-4 mr-2" />,
-          }}
-        />
-
-        {/* Search */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input
-              placeholder="Buscar por nome, email ou empresa..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
-          </div>
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div><h1 className="text-2xl font-extrabold">Usuários da plataforma</h1><p className="mt-1 text-sm text-slate-500">Convites e acessos separados por escritório.</p></div>
+          <Button onClick={() => setOpen(true)}><Plus /> Novo usuário</Button>
         </div>
-
-        {/* Table */}
-        <Card className="border-slate-200">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Usuário</TableHead>
-                  <TableHead>Empresa</TableHead>
-                  <TableHead>Cargo</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Último Acesso</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                          <AvatarFallback className="bg-slate-100 text-slate-600 text-sm font-medium">
-                            {user.iniciais}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{user.nome}</p>
-                          <p className="text-xs text-slate-500">{user.email}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{user.empresa}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className={getRoleColor(user.role)}>
-                        {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
-                        {user.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-slate-500">{user.ultimoAcesso}</TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                         <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg hover:bg-muted hover:text-foreground cursor-pointer outline-none">
-                            <MoreHorizontal className="h-4 w-4" />
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Pencil className="h-4 w-4 mr-2" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Desativar
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <div className="relative max-w-md"><Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar usuário ou escritório" className="pl-11" /></div>
+        <div className="overflow-hidden rounded-2xl border bg-white">
+          {filtered.map((user) => (
+            <div key={user.id} className="grid gap-3 border-b p-4 sm:grid-cols-[1.4fr_1fr_.7fr_.6fr] sm:items-center">
+              <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-50"><UserRound className="h-5 w-5 text-violet-600" /></div><div><p className="font-bold">{user.nome}</p><p className="text-sm text-slate-500">{user.email}</p></div></div>
+              <p className="text-sm font-semibold">{user.empresa.nome}</p>
+              <p className="text-sm">{user.role.replaceAll("_", " ")}</p>
+              <span className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${user.ativo ? "bg-emerald-50 text-emerald-700" : user.clerkInvitationId ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"}`}>{user.ativo ? "Ativo" : user.clerkInvitationId ? "Convidado" : "Inativo"}</span>
+            </div>
+          ))}
+        </div>
       </div>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4" onMouseDown={() => !saving && setOpen(false)}>
+          <form onSubmit={submit} onMouseDown={(event) => event.stopPropagation()} className="w-full max-w-lg rounded-3xl bg-white p-7 shadow-2xl">
+            <h2 className="text-2xl font-extrabold">Convidar usuário</h2>
+            <div className="mt-6 space-y-4">
+              <label className="block text-sm font-bold">Escritório<select required value={form.empresaId} onChange={(event) => setForm({ ...form, empresaId: event.target.value })} className="mt-2 h-12 w-full rounded-xl border bg-white px-4 font-normal"><option value="">Selecione</option>{empresas.filter((item) => item.ativo).map((item) => <option key={item.id} value={item.id}>{item.nome}</option>)}</select></label>
+              <ModalInput label="Nome" value={form.nome} onChange={(value) => setForm({ ...form, nome: value })} />
+              <ModalInput label="E-mail" type="email" value={form.email} onChange={(value) => setForm({ ...form, email: value })} />
+              <ModalInput label="Telefone" required={false} value={form.telefone} onChange={(value) => setForm({ ...form, telefone: value })} />
+              <label className="block text-sm font-bold">Função<select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value })} className="mt-2 h-12 w-full rounded-xl border bg-white px-4 font-normal"><option value="ADMINISTRADOR">Administrador</option><option value="ADVOGADO">Advogado</option><option value="ASSISTENTE">Assistente</option><option value="ESTAGIARIO">Estagiário</option></select></label>
+            </div>
+            {error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+            <div className="mt-6 flex justify-end gap-3"><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button type="submit" disabled={saving}>{saving && <Loader2 className="animate-spin" />} Enviar convite</Button></div>
+          </form>
+        </div>
+      )}
     </DashboardLayout>
   );
+}
+
+function ModalInput({ label, value, onChange, type = "text", required = true }: { label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean }) {
+  return <label className="block text-sm font-bold">{label}<input type={type} required={required} value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 h-12 w-full rounded-xl border px-4 font-normal outline-none focus:border-violet-500" /></label>;
 }

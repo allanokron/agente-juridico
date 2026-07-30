@@ -346,21 +346,24 @@ export default function ProcessDetailPage({ params }: { params: Promise<{ id: st
                 </div>
                 <div className="space-y-2">
                   <Label>Responsável</Label>
-                  <Select value={form.responsavelId} onValueChange={(value) => setForm({ ...form, responsavelId: value || "" })}>
+                  <Select value={form.responsavelId} onValueChange={(value) => setForm({ ...form, responsavelId: value || "" })}
+                    items={Object.fromEntries(team.map((member) => [member.id, member.nome]))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{team.map((member) => <SelectItem key={member.id} value={member.id}>{member.nome}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Tipo</Label>
-                  <Select value={form.tipoProcesso} onValueChange={(value) => setForm({ ...form, tipoProcesso: value || "CIVIL" })}>
+                  <Select value={form.tipoProcesso} onValueChange={(value) => setForm({ ...form, tipoProcesso: value || "CIVIL" })}
+                    items={Object.fromEntries(PROCESS_TYPES.map((type) => [type, type.replaceAll("_", " ")]))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{PROCESS_TYPES.map((type) => <SelectItem key={type} value={type}>{type.replaceAll("_", " ")}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Status</Label>
-                  <Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value || "ATIVO" })}>
+                  <Select value={form.status} onValueChange={(value) => setForm({ ...form, status: value || "ATIVO" })}
+                    items={Object.fromEntries(PROCESS_STATUSES.map((status) => [status, status.replaceAll("_", " ")]))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{PROCESS_STATUSES.map((status) => <SelectItem key={status} value={status}>{status.replaceAll("_", " ")}</SelectItem>)}</SelectContent>
                   </Select>
@@ -389,7 +392,8 @@ export default function ProcessDetailPage({ params }: { params: Promise<{ id: st
                   <CardHeader><CardTitle className="text-base">Nova atividade ou prazo</CardTitle></CardHeader>
                   <CardContent className="grid gap-3 md:grid-cols-2">
                     <Input placeholder="Título" value={activity.titulo} onChange={(event) => setActivity({ ...activity, titulo: event.target.value })} />
-                    <Select value={activity.tipo} onValueChange={(value) => setActivity({ ...activity, tipo: value || "PRAZO" })}>
+                    <Select value={activity.tipo} onValueChange={(value) => setActivity({ ...activity, tipo: value || "PRAZO" })}
+                      items={Object.fromEntries(["PRAZO", "AUDIENCIA", "REUNIAO", "PROTOCOLO", "LEMBRETE", "PERSONALIZADO"].map((type) => [type, type]))}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>{["PRAZO", "AUDIENCIA", "REUNIAO", "PROTOCOLO", "LEMBRETE", "PERSONALIZADO"].map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
                     </Select>

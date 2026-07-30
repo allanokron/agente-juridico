@@ -244,7 +244,8 @@ export default function ProcessesPage() {
               </div>
               <div className="grid gap-1.5">
                 <Label className="text-xs text-muted-foreground">Tipo de processo</Label>
-                <Select value={filterTipo} onValueChange={(v) => setFilterTipo(v ?? "all")}>
+                <Select value={filterTipo} onValueChange={(v) => setFilterTipo(v ?? "all")}
+                  items={{ all: "Todos", ...Object.fromEntries(tiposProcesso.map((t) => [t.value, t.label])) }}>
                   <SelectTrigger className="w-[160px] h-9">
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
@@ -260,7 +261,8 @@ export default function ProcessesPage() {
               </div>
               <div className="grid gap-1.5">
                 <Label className="text-xs text-muted-foreground">Responsável</Label>
-                <Select value={filterResponsavel} onValueChange={(v) => setFilterResponsavel(v ?? "all")}>
+                <Select value={filterResponsavel} onValueChange={(v) => setFilterResponsavel(v ?? "all")}
+                  items={{ all: "Todos", ...Object.fromEntries(responsaveis.map((r) => [r.id, r.nome])) }}>
                   <SelectTrigger className="w-[160px] h-9">
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>
@@ -276,7 +278,8 @@ export default function ProcessesPage() {
               </div>
               <div className="grid gap-1.5">
                 <Label className="text-xs text-muted-foreground">Etapa</Label>
-                <Select value={filterEtapa} onValueChange={(v) => setFilterEtapa(v ?? "all")}>
+                <Select value={filterEtapa} onValueChange={(v) => setFilterEtapa(v ?? "all")}
+                  items={{ all: "Todas", ...Object.fromEntries(etapas.map((e) => [e.id, e.nome])) }}>
                   <SelectTrigger className="w-[160px] h-9">
                     <SelectValue placeholder="Todas" />
                   </SelectTrigger>

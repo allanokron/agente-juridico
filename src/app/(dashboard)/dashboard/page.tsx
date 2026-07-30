@@ -85,8 +85,6 @@ function sortActivitiesByTime(activities: KanbanActivity[]): KanbanActivity[] {
   });
 }
 
-const EMPRESA_ID = "empresa-1";
-
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,9 +98,7 @@ export default function DashboardPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/dashboard?empresaId=${EMPRESA_ID}&usuarioId=placeholder&isAdmin=true`
-      );
+      const res = await fetch("/api/dashboard");
       const json = await res.json();
       setData(json);
     } catch {
@@ -130,7 +126,21 @@ export default function DashboardPage() {
         }),
       });
       if (!res.ok) throw new Error("Erro ao atualizar");
-      await fetchData();
+      const updated = await res.json();
+      setData((prev) => {
+        if (!prev) return prev;
+        const updateCard = (card: KanbanActivity) =>
+          card.id === cardId
+            ? { ...card, dataRevisao: updated.dataRevisao ?? card.dataRevisao, hora: updated.hora ?? card.hora }
+            : card;
+        return {
+          ...prev,
+          agenda: prev.agenda.map(updateCard),
+          atividadesHoje: prev.atividadesHoje.map(updateCard),
+          atividadesAmanha: prev.atividadesAmanha.map(updateCard),
+          atrasados: prev.atrasados.map(updateCard),
+        };
+      });
     } catch (err) {
       console.error("Erro ao atualizar data:", err);
     } finally {
@@ -149,13 +159,6 @@ export default function DashboardPage() {
   }
 
   const agenda = data?.agenda ?? [];
-  const agendaDates = new Set(
-    agenda
-      .map((a) =>
-        a.dataRevisao ? format(new Date(a.dataRevisao), "yyyy-MM-dd") : null
-      )
-      .filter(Boolean) as string[]
-  );
 
   const selectedDayActivities = sortActivitiesByTime(
     agenda.filter(

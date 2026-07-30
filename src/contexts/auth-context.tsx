@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth as useClerkAuth, useClerk } from "@clerk/nextjs";
 
 interface User {
   id: string;
@@ -33,32 +34,43 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const [user, setUserState] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const clerkAuth = useClerkAuth();
+  const clerk = useClerk();
+  const [loadedUser, setLoadedUser] = useState<User | null>(null);
+  const [resolvedClerkUserId, setResolvedClerkUserId] = useState<string | null>(null);
+  const user = clerkAuth.isSignedIn ? loadedUser : null;
+  const loading =
+    !clerkAuth.isLoaded ||
+    Boolean(
+      clerkAuth.isSignedIn && resolvedClerkUserId !== clerkAuth.userId
+    );
 
   useEffect(() => {
+    if (!clerkAuth.isLoaded || !clerkAuth.isSignedIn || !clerkAuth.userId) return;
+
     let active = true;
     fetch("/api/auth/me")
       .then(async (response) => {
         if (!active) return;
-        setUserState(response.ok ? await response.json() : null);
+        setLoadedUser(response.ok ? await response.json() : null);
       })
-      .catch(() => active && setUserState(null))
-      .finally(() => active && setLoading(false));
+      .catch(() => active && setLoadedUser(null))
+      .finally(() => active && setResolvedClerkUserId(clerkAuth.userId));
     return () => {
       active = false;
     };
-  }, []);
+  }, [clerkAuth.isLoaded, clerkAuth.isSignedIn, clerkAuth.userId]);
 
   const setUser = useCallback((u: User | null) => {
-    setUserState(u);
+    setLoadedUser(u);
   }, []);
 
   const logout = useCallback(async () => {
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
-    setUserState(null);
-    router.push("/");
-  }, [router]);
+    await clerk.signOut({ redirectUrl: "/entrar" });
+    setLoadedUser(null);
+    setResolvedClerkUserId(null);
+    router.refresh();
+  }, [clerk, router]);
 
   return (
     <AuthContext.Provider value={{ user, loading, setUser, logout }}>

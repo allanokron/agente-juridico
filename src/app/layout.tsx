@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/components/providers";
+import { ClerkProvider } from "@clerk/nextjs";
+import { lexoPtBR } from "@/lib/clerk-localization";
 
 const manrope = Manrope({
   variable: "--font-sans",
@@ -30,7 +32,16 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`${manrope.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col font-sans">
-        <AppProviders>{children}</AppProviders>
+        <ClerkProvider
+          localization={lexoPtBR}
+          signInUrl="/entrar"
+          signUpUrl="/cadastro"
+          signInFallbackRedirectUrl="/dashboard"
+          signUpFallbackRedirectUrl="/dashboard"
+          taskUrls={{ "setup-mfa": "/tarefas/configurar-mfa" }}
+        >
+          <AppProviders>{children}</AppProviders>
+        </ClerkProvider>
       </body>
     </html>
   );

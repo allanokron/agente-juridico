@@ -102,7 +102,7 @@ export async function POST(
     const atribuicao = await prisma.processoAtribuicao.create({
       data: {
         processoId: id,
-        usuarioId: sessionUser.id,
+        usuarioId,
       },
       include: {
         usuario: {
@@ -114,7 +114,7 @@ export async function POST(
     await prisma.historico.create({
       data: {
         processoId: id,
-        usuarioId,
+        usuarioId: sessionUser.id,
         descricao: `${usuario.nome} foi atribuído ao processo`,
         tipo: "atribuicao",
       },

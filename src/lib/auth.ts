@@ -1,11 +1,7 @@
 import "server-only";
 
-import { createHash, randomBytes } from "node:crypto";
-import { cookies } from "next/headers";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-
-export const SESSION_COOKIE = "lexo_session";
-const SESSION_DURATION_MS = 1000 * 60 * 60 * 24 * 30;
 
 export type SessionUser = {
   id: string;
@@ -21,58 +17,70 @@ export type SessionUser = {
   } | null;
 };
 
-function hashToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
-}
-
-export async function createSession(usuarioId: string) {
-  const token = randomBytes(32).toString("base64url");
-  const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
-
-  await prisma.sessao.create({
-    data: { tokenHash: hashToken(token), usuarioId, expiresAt },
-  });
-
-  (await cookies()).set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    expires: expiresAt,
-  });
-}
-
-export async function revokeSession() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
-  if (token) {
-    await prisma.sessao.deleteMany({
-      where: { tokenHash: hashToken(token) },
-    });
-  }
-  cookieStore.delete(SESSION_COOKIE);
-}
-
 export async function getSessionUser(): Promise<SessionUser | null> {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!token) return null;
+  const { userId } = await auth();
+  if (!userId) return null;
 
-  const session = await prisma.sessao.findUnique({
-    where: { tokenHash: hashToken(token) },
+  let usuario = await prisma.usuario.findUnique({
+    where: { clerkId: userId },
     include: {
-      usuario: {
-        include: {
-          cargo: { select: { id: true, nome: true, permissoes: true } },
-        },
-      },
+      cargo: { select: { id: true, nome: true, permissoes: true } },
+      empresa: { select: { ativo: true } },
     },
   });
 
-  if (!session || session.expiresAt <= new Date() || !session.usuario.ativo) {
-    return null;
+  if (!usuario) {
+    const clerkUser = await currentUser();
+    if (!clerkUser || clerkUser.id !== userId) return null;
+
+    const metadataUserId =
+      typeof clerkUser.publicMetadata?.appUserId === "string"
+        ? clerkUser.publicMetadata.appUserId
+        : null;
+    const primaryEmail = clerkUser.primaryEmailAddress?.emailAddress
+      ?.trim()
+      .toLowerCase();
+    const emailVerified =
+      clerkUser.primaryEmailAddress?.verification?.status === "verified";
+
+    const candidate = metadataUserId
+      ? await prisma.usuario.findFirst({
+          where: { id: metadataUserId, clerkId: null },
+          select: { id: true },
+        })
+      : emailVerified && primaryEmail
+        ? await prisma.usuario.findFirst({
+            where: {
+              email: { equals: primaryEmail, mode: "insensitive" },
+              clerkId: null,
+            },
+            select: { id: true },
+          })
+        : null;
+
+    if (!candidate) return null;
+
+    await prisma.usuario.updateMany({
+      where: { id: candidate.id, clerkId: null },
+      data: {
+        clerkId: userId,
+        ativo: true,
+        ultimoAcesso: new Date(),
+        avatar: clerkUser.imageUrl || undefined,
+      },
+    });
+
+    usuario = await prisma.usuario.findUnique({
+      where: { clerkId: userId },
+      include: {
+        cargo: { select: { id: true, nome: true, permissoes: true } },
+        empresa: { select: { ativo: true } },
+      },
+    });
   }
 
-  const { usuario } = session;
+  if (!usuario?.ativo || !usuario.empresa.ativo) return null;
+
   return {
     id: usuario.id,
     email: usuario.email,
@@ -84,13 +92,37 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   };
 }
 
+export function isAdmin(user: SessionUser) {
+  return user.role === "SUPER_ADMIN" || user.role === "ADMINISTRADOR";
+}
+
+export function hasPermission(user: SessionUser, permission: string) {
+  if (isAdmin(user)) return true;
+  const permissions = user.cargo?.permissoes;
+  if (!permissions || typeof permissions !== "object" || Array.isArray(permissions)) {
+    return false;
+  }
+
+  const values = permissions as Record<string, unknown>;
+  if (values[permission] === true) return true;
+
+  const [section, action] = permission.split("_", 2);
+  const nested = values[section];
+  return Boolean(
+    nested &&
+      typeof nested === "object" &&
+      !Array.isArray(nested) &&
+      (nested as Record<string, unknown>)[action] === true
+  );
+}
+
 export async function canAccessProcess(processoId: string, user: SessionUser) {
-  const isAdmin = user.role === "SUPER_ADMIN" || user.role === "ADMINISTRADOR";
+  const admin = isAdmin(user);
   return prisma.processo.findFirst({
     where: {
       id: processoId,
       empresaId: user.empresaId,
-      ...(isAdmin
+      ...(admin
         ? {}
         : {
             OR: [

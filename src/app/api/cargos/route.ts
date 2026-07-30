@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser, isAdmin } from "@/lib/auth";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const empresaId = searchParams.get("empresaId");
-
-    if (!empresaId) {
-      return NextResponse.json(
-        { error: "empresaId é obrigatório" },
-        { status: 400 }
-      );
-    }
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    const empresaId = user.empresaId;
 
     const cargos = await prisma.cargo.findMany({
       where: { empresaId },
@@ -35,12 +30,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (!isAdmin(user)) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     const body = await request.json();
-    const { empresaId, nome, permissoes } = body;
+    const { nome, permissoes } = body;
+    const empresaId = user.empresaId;
 
-    if (!empresaId || !nome) {
+    if (!nome) {
       return NextResponse.json(
-        { error: "empresaId e nome são obrigatórios" },
+        { error: "Nome é obrigatório" },
         { status: 400 }
       );
     }

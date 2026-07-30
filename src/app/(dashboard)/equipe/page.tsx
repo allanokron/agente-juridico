@@ -34,6 +34,9 @@ import {
   Trash2,
   Shield,
   Loader2,
+  UserCheck,
+  UserX,
+  Mail,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -41,8 +44,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-const EMPRESA_ID = "empresa-1";
+import { useAuth } from "@/contexts/auth-context";
 
 interface Cargo {
   id: string;
@@ -62,6 +64,9 @@ interface TeamMember {
   cargo?: { id: string; nome: string } | null;
   ativo: boolean;
   ultimoAcesso?: string | null;
+  clerkId?: string | null;
+  clerkInvitationId?: string | null;
+  conviteEnviadoEm?: string | null;
 }
 
 interface MemberFormData {
@@ -178,6 +183,7 @@ function countPermissions(permissoes: Record<string, boolean>) {
 }
 
 export default function TeamPage() {
+  const { user } = useAuth();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [cargos, setCargos] = useState<Cargo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -200,7 +206,7 @@ export default function TeamPage() {
   const fetchMembers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/usuarios?empresaId=${EMPRESA_ID}`);
+      const res = await fetch("/api/usuarios?includeInactive=true");
       if (res.ok) {
         const data = await res.json();
         setMembers(data);
@@ -214,7 +220,7 @@ export default function TeamPage() {
 
   const fetchCargos = useCallback(async () => {
     try {
-      const res = await fetch(`/api/cargos?empresaId=${EMPRESA_ID}`);
+      const res = await fetch("/api/cargos");
       if (res.ok) {
         const data = await res.json();
         setCargos(data);
@@ -261,7 +267,6 @@ export default function TeamPage() {
     setMemberSubmitting(true);
     try {
       const payload = {
-        empresaId: EMPRESA_ID,
         nome: memberForm.nome,
         email: memberForm.email,
         telefone: memberForm.telefone || null,
@@ -309,6 +314,30 @@ export default function TeamPage() {
     setDeleteType(null);
   };
 
+  const handleToggleMember = async (member: TeamMember) => {
+    try {
+      const res = await fetch(`/api/usuarios/${member.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ativo: !member.ativo }),
+      });
+      if (res.ok) {
+        fetchMembers();
+      }
+    } catch {
+      // silent
+    }
+  };
+
+  const handleResendInvite = async (member: TeamMember) => {
+    try {
+      await fetch(`/api/usuarios/${member.id}/convite`, { method: "POST" });
+      fetchMembers();
+    } catch {
+      // silent
+    }
+  };
+
   const handleCreateCargo = () => {
     setEditingCargo(null);
     setCargoForm(initialCargoForm);
@@ -328,7 +357,6 @@ export default function TeamPage() {
     setCargoSubmitting(true);
     try {
       const payload = {
-        empresaId: EMPRESA_ID,
         nome: cargoForm.nome,
         permissoes: cargoForm.permissoes,
       };
@@ -387,7 +415,7 @@ export default function TeamPage() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout isAdmin={user?.role === "SUPER_ADMIN" || user?.role === "ADMINISTRADOR"}>
       <div className="space-y-6">
         <PageHeader
           title="Equipe"
@@ -466,6 +494,25 @@ export default function TeamPage() {
                               <Pencil className="h-4 w-4 mr-2" />
                               Editar
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleToggleMember(member)}>
+                              {member.ativo ? (
+                                <>
+                                  <UserX className="h-4 w-4 mr-2" />
+                                  Desativar
+                                </>
+                              ) : (
+                                <>
+                                  <UserCheck className="h-4 w-4 mr-2" />
+                                  Ativar
+                                </>
+                              )}
+                            </DropdownMenuItem>
+                            {!member.clerkId && member.clerkInvitationId && (
+                              <DropdownMenuItem onClick={() => handleResendInvite(member)}>
+                                <Mail className="h-4 w-4 mr-2" />
+                                Reenviar convite
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               onClick={() => {
                                 setDeleteConfirmId(member.id);
@@ -484,7 +531,13 @@ export default function TeamPage() {
                           {member.cargo?.nome ?? getRoleLabel(member.role)}
                         </Badge>
                         <Badge variant="outline" className={member.ativo ? "text-emerald-600" : "text-muted-foreground/60"}>
-                          {member.ativo ? "Ativo" : "Inativo"}
+                          {member.clerkId
+                            ? member.ativo
+                              ? "Ativo"
+                              : "Bloqueado"
+                            : member.clerkInvitationId
+                              ? "Convidado"
+                              : "Sem acesso"}
                         </Badge>
                       </div>
                     </CardContent>

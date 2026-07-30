@@ -76,23 +76,44 @@ enum StatusEvento {
   REAGENDADO
 }
 
+enum LeadStatus {
+  NOVO
+  EM_CONTATO
+  QUALIFICADO
+  PROPOSTA
+  GANHO
+  PERDIDO
+  ARQUIVADO
+}
+
+enum ProvisionamentoStatus {
+  RASCUNHO
+  PROCESSANDO
+  PRONTO
+  FALHA
+}
+
 // ============================================
 // MULTI TENANT - EMPRESAS/ESCRITÓRIOS
 // ============================================
 
 model Empresa {
-  id        String   @id @default(cuid())
-  nome      String
-  cnpj      String?  @unique
-  email     String?
-  telefone  String?
-  endereco  String?
-  logo      String?
-  plano     String   @default("free")
-  ativo     Boolean  @default(true)
-  metadata  Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                    String                @id @default(cuid())
+  nome                  String
+  cnpj                  String?               @unique
+  email                 String?
+  telefone              String?
+  endereco              String?
+  logo                  String?
+  plano                 String                @default("free")
+  ativo                 Boolean               @default(true)
+  provisionamentoStatus ProvisionamentoStatus @default(PRONTO)
+  provisionamentoErro   String?               @db.Text
+  masterUserId          String?               @unique
+  leadOrigemId          String?               @unique
+  metadata              Json?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
 
   usuarios     Usuario[]
   clientes     Cliente[]
@@ -104,6 +125,8 @@ model Empresa {
   etapasKanban EtapasKanban[]
   kanbanCards  KanbanCard[]
   cargos       Cargo[]
+  masterUser   Usuario?       @relation("EmpresaMaster", fields: [masterUserId], references: [id], onDelete: SetNull)
+  leadOrigem   Lead?          @relation("LeadConvertido", fields: [leadOrigemId], references: [id], onDelete: SetNull)
 
   @@map("empresas")
 }
@@ -134,38 +157,103 @@ model Cargo {
 // ============================================
 
 model Usuario {
-  id           String    @id @default(cuid())
-  empresaId    String
-  clerkId      String?   @unique
-  nome         String
-  email        String    @unique
-  senha        String?   @db.Text
-  telefone     String?
-  avatar       String?   @db.Text
-  role         Role      @default(ADVOGADO)
-  cargoId      String?
-  ativo        Boolean   @default(true)
-  ultimoAcesso DateTime?
-  metadata     Json?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  empresaId         String
+  clerkId           String?   @unique
+  clerkInvitationId String?   @unique
+  conviteEnviadoEm  DateTime?
+  nome              String
+  email             String    @unique
+  senha             String?   @db.Text
+  telefone          String?
+  avatar            String?   @db.Text
+  role              Role      @default(ADVOGADO)
+  cargoId           String?
+  ativo             Boolean   @default(true)
+  ultimoAcesso      DateTime?
+  metadata          Json?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  empresa      Empresa              @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  cargo        Cargo?               @relation(fields: [cargoId], references: [id], onDelete: SetNull)
-  processos    Processo[]
-  eventos      Evento[]
-  documentos   Documento[]
-  logs         Log[]
-  atribuicoes  ProcessoAtribuicao[]
-  historicos   Historico[]
-  sessoes      Sessao[]
-  comentarios  Comentario[]         @relation("ComentarioAutor")
-  mencoes      ComentarioMencao[]   @relation("ComentarioMencionado")
-  notificacoes Notificacao[]
+  empresa          Empresa              @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  cargo            Cargo?               @relation(fields: [cargoId], references: [id], onDelete: SetNull)
+  processos        Processo[]
+  eventos          Evento[]
+  documentos       Documento[]
+  logs             Log[]
+  atribuicoes      ProcessoAtribuicao[]
+  historicos       Historico[]
+  sessoes          Sessao[]
+  comentarios      Comentario[]         @relation("ComentarioAutor")
+  mencoes          ComentarioMencao[]   @relation("ComentarioMencionado")
+  notificacoes     Notificacao[]
+  empresaMaster    Empresa?             @relation("EmpresaMaster")
+  leadsResponsavel Lead[]               @relation("LeadResponsavel")
+  leadAtividades   LeadAtividade[]
 
   @@index([empresaId])
   @@index([cargoId])
   @@map("usuarios")
+}
+
+// ============================================
+// CRM COMERCIAL - LEADS DA HOME
+// ============================================
+
+model Lead {
+  id                  String     @id @default(cuid())
+  nomeContato         String
+  escritorio          String
+  email               String
+  emailNormalizado    String
+  whatsapp            String
+  whatsappNormalizado String
+  cidade              String?
+  uf                  String?
+  tamanhoEquipe       String?
+  volumeProcessos     String?
+  mensagem            String?    @db.Text
+  status              LeadStatus @default(NOVO)
+  responsavelId       String?
+  origem              String     @default("home")
+  utmSource           String?
+  utmMedium           String?
+  utmCampaign         String?
+  utmContent          String?
+  utmTerm             String?
+  consentimentoLgpd   Boolean
+  consentimentoEm     DateTime
+  ultimoContatoEm     DateTime?
+  metadata            Json?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  responsavel       Usuario?        @relation("LeadResponsavel", fields: [responsavelId], references: [id], onDelete: SetNull)
+  atividades        LeadAtividade[]
+  empresaConvertida Empresa?        @relation("LeadConvertido")
+
+  @@index([status, createdAt])
+  @@index([emailNormalizado])
+  @@index([whatsappNormalizado])
+  @@index([responsavelId])
+  @@map("leads")
+}
+
+model LeadAtividade {
+  id        String   @id @default(cuid())
+  leadId    String
+  autorId   String?
+  tipo      String
+  descricao String   @db.Text
+  detalhes  Json?
+  createdAt DateTime @default(now())
+
+  lead  Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  autor Usuario? @relation(fields: [autorId], references: [id], onDelete: SetNull)
+
+  @@index([leadId, createdAt])
+  @@index([autorId])
+  @@map("lead_atividades")
 }
 
 // ============================================

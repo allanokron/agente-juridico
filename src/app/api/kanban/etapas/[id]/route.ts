@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser, isAdmin } from "@/lib/auth";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (!isAdmin(user)) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     const { id } = await params;
     const body = await request.json();
     const { nome, cor, ordem } = body;
 
-    const existing = await prisma.etapasKanban.findUnique({
-      where: { id },
+    const existing = await prisma.etapasKanban.findFirst({
+      where: { id, empresaId: user.empresaId },
     });
 
     if (!existing) {
@@ -45,25 +49,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (!isAdmin(user)) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const usuarioId = searchParams.get("usuarioId");
 
-    if (usuarioId) {
-      const usuario = await prisma.usuario.findUnique({
-        where: { id: usuarioId },
-      });
-
-      if (!usuario || !["SUPER_ADMIN", "ADMINISTRADOR"].includes(usuario.role)) {
-        return NextResponse.json(
-          { error: "Apenas administradores podem excluir etapas" },
-          { status: 403 }
-        );
-      }
-    }
-
-    const existing = await prisma.etapasKanban.findUnique({
-      where: { id },
+    const existing = await prisma.etapasKanban.findFirst({
+      where: { id, empresaId: user.empresaId },
     });
 
     if (!existing) {

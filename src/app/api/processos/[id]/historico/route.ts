@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { canAccessProcess, getSessionUser } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     const { id } = await params;
-
-    const processo = await prisma.processo.findUnique({
-      where: { id },
-    });
-
-    if (!processo) {
+    if (!(await canAccessProcess(id, user))) {
       return NextResponse.json(
-        { error: "Processo não encontrado" },
-        { status: 404 }
+        { error: "Acesso negado" },
+        { status: 403 }
       );
     }
 

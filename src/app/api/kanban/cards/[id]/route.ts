@@ -66,7 +66,7 @@ export async function PUT(
     const user = await getSessionUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     const body = await request.json();
-    const { observacoes, dataRevisao, hora, usuarioId } = body;
+    const { observacoes, dataRevisao, hora } = body;
 
     const existing = await prisma.kanbanCard.findUnique({
       where: { id },

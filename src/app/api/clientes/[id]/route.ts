@@ -1,15 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser, isAdmin } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     const { id } = await params;
 
-    const cliente = await prisma.cliente.findUnique({
-      where: { id },
+    const cliente = await prisma.cliente.findFirst({
+      where: {
+        id,
+        empresaId: user.empresaId,
+        ...(isAdmin(user)
+          ? {}
+          : { processos: { some: { atribuicoes: { some: { usuarioId: user.id } } } } }),
+      },
       include: {
         _count: {
           select: { processos: true },
@@ -46,11 +55,13 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     const { id } = await params;
     const body = await request.json();
     const { nome, cpfCnpj, telefone, email, endereco, observacoes } = body;
 
-    const existing = await prisma.cliente.findUnique({ where: { id } });
+    const existing = await prisma.cliente.findFirst({ where: { id, empresaId: user.empresaId } });
 
     if (!existing) {
       return NextResponse.json(
@@ -91,10 +102,13 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (!isAdmin(user)) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     const { id } = await params;
 
-    const existing = await prisma.cliente.findUnique({
-      where: { id },
+    const existing = await prisma.cliente.findFirst({
+      where: { id, empresaId: user.empresaId },
       include: {
         _count: {
           select: { processos: true },

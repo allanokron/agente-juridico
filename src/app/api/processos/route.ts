@@ -1,32 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionUser, isAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const empresaId = searchParams.get("empresaId");
-    const usuarioId = searchParams.get("usuarioId");
-    const numero = searchParams.get("numero");
-
-    if (!empresaId) {
-      return NextResponse.json(
-        { error: "empresaId é obrigatório" },
-        { status: 400 }
-      );
+    const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
-
-    const where: Record<string, unknown> = { empresaId };
-
-    if (usuarioId) {
-      where.atribuicoes = {
-        some: { usuarioId },
-      };
-    }
-
-    if (numero) {
-      const digits = numero.replace(/\D/g, "");
-      where.numeroProcesso = { contains: digits };
-    }
+    const numero = request.nextUrl.searchParams.get("numero");
+    const where = {
+      empresaId: user.empresaId,
+      ...(!isAdmin(user)
+        ? {
+            OR: [
+              { responsavelId: user.id },
+              { atribuicoes: { some: { usuarioId: user.id } } },
+            ],
+          }
+        : {}),
+      ...(numero
+        ? { numeroProcesso: { contains: numero.replace(/\D/g, "") } }
+        : {}),
+    };
 
     const processos = await prisma.processo.findMany({
       where,
@@ -34,9 +30,7 @@ export async function GET(request: NextRequest) {
         cliente: { select: { id: true, nome: true, cpfCnpj: true } },
         responsavel: { select: { id: true, nome: true, email: true } },
         kanbanCard: {
-          include: {
-            etapa: { select: { id: true, nome: true, cor: true } },
-          },
+          include: { etapa: { select: { id: true, nome: true, cor: true } } },
         },
         atribuicoes: {
           include: {
@@ -46,7 +40,6 @@ export async function GET(request: NextRequest) {
       },
       orderBy: { createdAt: "desc" },
     });
-
     return NextResponse.json(processos);
   } catch (error) {
     console.error("Erro ao buscar processos:", error);
@@ -59,9 +52,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
     const body = await request.json();
     const {
-      empresaId,
       clienteId,
       responsavelId,
       numeroProcesso,
@@ -69,77 +65,109 @@ export async function POST(request: NextRequest) {
       vara,
       tipoProcesso,
       observacoes,
-      atribuicoes,
       dataRevisao,
       hora,
     } = body;
+    const atribuicoes: string[] = Array.isArray(body.atribuicoes)
+      ? [...new Set<string>(body.atribuicoes.map((value: unknown) => String(value)))]
+      : [];
 
-    if (!empresaId || !clienteId || !responsavelId || !tipoProcesso) {
+    if (!clienteId || !responsavelId || !tipoProcesso) {
       return NextResponse.json(
-        { error: "empresaId, clienteId, responsavelId e tipoProcesso são obrigatórios" },
+        { error: "Cliente, responsável e tipo do processo são obrigatórios" },
         { status: 400 }
       );
     }
 
-    const processo = await prisma.processo.create({
-      data: {
-        empresaId,
-        clienteId,
-        responsavelId,
-        numeroProcesso,
-        tribunal,
-        vara,
-        tipoProcesso,
-        observacoes,
-      },
-    });
+    const [cliente, responsavel, primeiraEtapa, validAssignments] =
+      await Promise.all([
+        prisma.cliente.findFirst({
+          where: { id: clienteId, empresaId: user.empresaId, ativo: true },
+          select: { id: true },
+        }),
+        prisma.usuario.findFirst({
+          where: { id: responsavelId, empresaId: user.empresaId, ativo: true },
+          select: { id: true },
+        }),
+        prisma.etapasKanban.findFirst({
+          where: { empresaId: user.empresaId, ativo: true },
+          orderBy: { ordem: "asc" },
+          select: { id: true },
+        }),
+        prisma.usuario.findMany({
+          where: {
+            id: { in: atribuicoes },
+            empresaId: user.empresaId,
+            ativo: true,
+          },
+          select: { id: true },
+        }),
+      ]);
 
-    const primeiraEtapa = await prisma.etapasKanban.findFirst({
-      where: {
-        empresaId,
-        ativo: true,
-      },
-      orderBy: { ordem: "asc" },
-    });
+    if (!cliente || !responsavel) {
+      return NextResponse.json(
+        { error: "Cliente ou responsável inválido" },
+        { status: 400 }
+      );
+    }
+    if (validAssignments.length !== atribuicoes.length) {
+      return NextResponse.json(
+        { error: "Uma ou mais atribuições são inválidas" },
+        { status: 400 }
+      );
+    }
 
-    if (primeiraEtapa) {
-      await prisma.kanbanCard.create({
+    const processoId = await prisma.$transaction(async (tx) => {
+      const processo = await tx.processo.create({
         data: {
-          empresaId,
-          processoId: processo.id,
-          etapaId: primeiraEtapa.id,
-          dataRevisao: dataRevisao ? new Date(dataRevisao + "T12:00:00") : null,
-          hora: hora || null,
-          ordem: 0,
+          empresaId: user.empresaId,
+          clienteId,
+          responsavelId,
+          numeroProcesso,
+          tribunal,
+          vara,
+          tipoProcesso,
+          observacoes,
         },
       });
-    }
-
-    if (atribuicoes && Array.isArray(atribuicoes) && atribuicoes.length > 0) {
-      await prisma.processoAtribuicao.createMany({
-        data: atribuicoes.map((usuarioId: string) => ({
+      if (primeiraEtapa) {
+        await tx.kanbanCard.create({
+          data: {
+            empresaId: user.empresaId,
+            processoId: processo.id,
+            etapaId: primeiraEtapa.id,
+            dataRevisao: dataRevisao
+              ? new Date(`${dataRevisao}T12:00:00`)
+              : null,
+            hora: hora || null,
+          },
+        });
+      }
+      if (validAssignments.length) {
+        await tx.processoAtribuicao.createMany({
+          data: validAssignments.map(({ id }) => ({
+            processoId: processo.id,
+            usuarioId: id,
+          })),
+        });
+      }
+      await tx.historico.create({
+        data: {
           processoId: processo.id,
-          usuarioId,
-        })),
+          usuarioId: user.id,
+          descricao: "Processo criado",
+          tipo: "criacao",
+        },
       });
-    }
-
-    await prisma.historico.create({
-      data: {
-        processoId: processo.id,
-        descricao: "Processo criado",
-        tipo: "criacao",
-      },
+      return processo.id;
     });
 
-    const processoCompleto = await prisma.processo.findUnique({
-      where: { id: processo.id },
+    const processo = await prisma.processo.findUnique({
+      where: { id: processoId },
       include: {
         cliente: true,
         responsavel: true,
-        kanbanCard: {
-          include: { etapa: true },
-        },
+        kanbanCard: { include: { etapa: true } },
         atribuicoes: {
           include: {
             usuario: { select: { id: true, nome: true, email: true } },
@@ -147,8 +175,7 @@ export async function POST(request: NextRequest) {
         },
       },
     });
-
-    return NextResponse.json(processoCompleto, { status: 201 });
+    return NextResponse.json(processo, { status: 201 });
   } catch (error) {
     console.error("Erro ao criar processo:", error);
     return NextResponse.json(

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser, isAdmin } from "@/lib/auth";
 
 const DEFAULT_TIPOS = [
   { valor: "CIVIL", label: "Cível" },
@@ -15,17 +16,11 @@ const DEFAULT_TIPOS = [
   { valor: "OUTRO", label: "Outro" },
 ];
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const empresaId = searchParams.get("empresaId");
-
-    if (!empresaId) {
-      return NextResponse.json(
-        { error: "empresaId é obrigatório" },
-        { status: 400 }
-      );
-    }
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    const empresaId = user.empresaId;
 
     let tipos = await prisma.tipoProcessoCustom.findMany({
       where: { empresaId, ativo: true },
@@ -58,12 +53,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (!isAdmin(user)) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     const body = await request.json();
-    const { empresaId, valor, label } = body;
+    const { valor, label } = body;
+    const empresaId = user.empresaId;
 
-    if (!empresaId || !valor || !label) {
+    if (!valor || !label) {
       return NextResponse.json(
-        { error: "empresaId, valor e label são obrigatórios" },
+        { error: "Valor e nome são obrigatórios" },
         { status: 400 }
       );
     }

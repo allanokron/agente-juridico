@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { canAccessProcess, getSessionUser, isAdmin } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const empresaId = searchParams.get("empresaId");
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    const empresaId = user.empresaId;
     const etapaId = searchParams.get("etapaId");
-    const usuarioId = searchParams.get("usuarioId");
-
-    if (!empresaId) {
-      return NextResponse.json(
-        { error: "empresaId é obrigatório" },
-        { status: 400 }
-      );
-    }
 
     const where: Record<string, unknown> = { empresaId };
 
@@ -21,11 +16,12 @@ export async function GET(request: NextRequest) {
       where.etapaId = etapaId;
     }
 
-    if (usuarioId) {
+    if (!isAdmin(user)) {
       where.processo = {
-        atribuicoes: {
-          some: { usuarioId },
-        },
+        OR: [
+          { responsavelId: user.id },
+          { atribuicoes: { some: { usuarioId: user.id } } },
+        ],
       };
     }
 
@@ -55,8 +51,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     const body = await request.json();
-    const { cardId, etapaId, dataRevisao, hora, observacoes, ordem, usuarioId } = body;
+    const { cardId, etapaId, dataRevisao, hora, observacoes, ordem } = body;
 
     if (!cardId) {
       return NextResponse.json(
@@ -73,14 +71,24 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (!existingCard) {
+    if (!existingCard || existingCard.empresaId !== user.empresaId) {
       return NextResponse.json(
         { error: "Card não encontrado" },
         { status: 404 }
       );
     }
-
-    const newEtapaId = etapaId || existingCard.etapaId;
+    if (!(await canAccessProcess(existingCard.processoId, user))) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    }
+    const newEtapa = etapaId
+      ? await prisma.etapasKanban.findFirst({
+          where: { id: etapaId, empresaId: user.empresaId, ativo: true },
+          select: { nome: true },
+        })
+      : null;
+    if (etapaId && !newEtapa) {
+      return NextResponse.json({ error: "Etapa inválida" }, { status: 400 });
+    }
 
     const updatedCard = await prisma.kanbanCard.update({
       where: { id: cardId },
@@ -96,15 +104,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (etapaId && etapaId !== existingCard.etapaId) {
-      const newEtapa = await prisma.etapasKanban.findUnique({
-        where: { id: etapaId },
-        select: { nome: true },
-      });
-
       await prisma.historico.create({
         data: {
           processoId: existingCard.processoId,
-          usuarioId: usuarioId || null,
+          usuarioId: user.id,
           descricao: `Card movido de "${existingCard.etapa.nome}" para "${newEtapa?.nome || "Etapa desconhecida"}"`,
           tipo: "movimentacao_kanban",
           detalhes: {

@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser, isAdmin } from "@/lib/auth";
 
 const DEFAULT_ETAPAS = [
   { nome: "Triagem", cor: "#3B82F6", ordem: 1 },
@@ -9,17 +10,12 @@ const DEFAULT_ETAPAS = [
   { nome: "Finalizado", cor: "#10B981", ordem: 5 },
 ];
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const body = await request.json();
-    const { empresaId } = body;
-
-    if (!empresaId) {
-      return NextResponse.json(
-        { error: "empresaId é obrigatório" },
-        { status: 400 }
-      );
-    }
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (!isAdmin(user)) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+    const empresaId = user.empresaId;
 
     const empresa = await prisma.empresa.findUnique({
       where: { id: empresaId },

@@ -651,6 +651,7 @@ export function CreateProcessDialog({
               <Select
                 value={processo.tipoProcesso}
                 onValueChange={(value) => setProcesso({ ...processo, tipoProcesso: value ?? "" })}
+                items={Object.fromEntries(tiposProcesso.map((t) => [t.valor, t.label]))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o tipo" />

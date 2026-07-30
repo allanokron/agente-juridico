@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canAccessProcess, getSessionUser } from "@/lib/auth";
+import { canAccessProcess, getSessionUser, isAdmin } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
@@ -159,24 +159,12 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const usuarioId = searchParams.get("usuarioId");
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    if (!isAdmin(user)) return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
 
-    if (usuarioId) {
-      const usuario = await prisma.usuario.findUnique({
-        where: { id: usuarioId },
-      });
-
-      if (!usuario || !["SUPER_ADMIN", "ADMINISTRADOR"].includes(usuario.role)) {
-        return NextResponse.json(
-          { error: "Apenas administradores podem excluir processos" },
-          { status: 403 }
-        );
-      }
-    }
-
-    const existing = await prisma.processo.findUnique({
-      where: { id },
+    const existing = await prisma.processo.findFirst({
+      where: { id, empresaId: user.empresaId },
     });
 
     if (!existing) {

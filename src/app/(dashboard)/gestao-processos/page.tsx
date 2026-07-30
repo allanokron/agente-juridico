@@ -143,7 +143,8 @@ export default function GestaoProcessosPage() {
               </div>
               <div className="grid gap-1.5">
                 <Label className="text-xs text-muted-foreground">Tipo de processo</Label>
-                <Select value={filterTipo} onValueChange={(v) => setFilterTipo(v ?? "all")}>
+                <Select value={filterTipo} onValueChange={(v) => setFilterTipo(v ?? "all")}
+                  items={{ all: "Todos", ...Object.fromEntries(TIPOS_PROCESSO.map((t) => [t.value, t.label])) }}>
                   <SelectTrigger className="w-[160px] h-9">
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>

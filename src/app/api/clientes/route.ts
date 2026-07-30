@@ -1,27 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser, isAdmin } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const empresaId = searchParams.get("empresaId");
-    const usuarioId = searchParams.get("usuarioId");
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    const empresaId = user.empresaId;
     const cpfCnpj = searchParams.get("cpfCnpj");
-
-    if (!empresaId) {
-      return NextResponse.json(
-        { error: "empresaId é obrigatório" },
-        { status: 400 }
-      );
-    }
 
     const where: Record<string, unknown> = { empresaId };
 
-    if (usuarioId) {
+    if (!isAdmin(user)) {
       where.processos = {
         some: {
           atribuicoes: {
-            some: { usuarioId },
+            some: { usuarioId: user.id },
           },
         },
       };
@@ -54,13 +49,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getSessionUser();
+    if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     const body = await request.json();
-    const { empresaId, nome, cpfCnpj, telefone, email, endereco, observacoes } =
+    const { nome, cpfCnpj, telefone, email, endereco, observacoes } =
       body;
+    const empresaId = user.empresaId;
 
-    if (!empresaId || !nome) {
+    if (!nome) {
       return NextResponse.json(
-        { error: "empresaId e nome são obrigatórios" },
+        { error: "Nome é obrigatório" },
         { status: 400 }
       );
     }
