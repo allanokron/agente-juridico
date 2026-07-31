@@ -272,7 +272,7 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-3 border-slate-200 text-slate-400 sm:border-l sm:pl-7">
             <span className="whitespace-nowrap text-right text-[10px] font-semibold uppercase tracking-[.14em]">
-              Uma empresa do
+              Um produto do
             </span>
             <Image
               src="/logos/grupo-nexiva.png"
@@ -280,6 +280,18 @@ export default function HomePage() {
               width={1069}
               height={306}
               className="h-auto w-28 opacity-90"
+            />
+          </div>
+          <div className="flex items-center gap-2 text-slate-400 sm:border-l sm:pl-7">
+            <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[.14em]">
+              Desenvolvido por
+            </span>
+            <Image
+              src="/logos/okron.png"
+              alt="OKRON"
+              width={500}
+              height={500}
+              className="h-auto w-16 opacity-60"
             />
           </div>
           <p className="text-sm text-slate-400">© {new Date().getFullYear()} LEXO</p>
