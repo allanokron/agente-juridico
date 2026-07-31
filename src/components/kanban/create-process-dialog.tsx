@@ -92,6 +92,7 @@ export function CreateProcessDialog({
   const empresaId = user?.empresaId || "";
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const [isExistingClient, setIsExistingClient] = useState(true);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -174,6 +175,7 @@ export function CreateProcessDialog({
       setTipoPessoa("PF");
       setCreatedProcessoId(null);
       setTotalSteps(3);
+      setError("");
       setNewCliente({ nome: "", cpfCnpj: "", telefone: "", email: "", cep: "", endereco: "", bairro: "", cidade: "", estado: "", numero: "", complemento: "" });
       setProcesso({ numeroProcesso: "", tipoProcesso: "", tribunal: "", vara: "", observacoes: "" });
     }
@@ -333,7 +335,10 @@ export function CreateProcessDialog({
           }),
         });
 
-        if (!clienteRes.ok) throw new Error("Erro ao criar cliente");
+        if (!clienteRes.ok) {
+          const result = await clienteRes.json().catch(() => null);
+          throw new Error(result?.error || "Erro ao criar cliente");
+        }
         const clienteData = await clienteRes.json();
         clienteId = clienteData.id;
       }
@@ -357,14 +362,17 @@ export function CreateProcessDialog({
         }),
       });
 
-      if (!processoRes.ok) throw new Error("Erro ao criar processo");
+      if (!processoRes.ok) {
+        const result = await processoRes.json().catch(() => null);
+        throw new Error(result?.error || "Erro ao criar processo");
+      }
       const processoData = await processoRes.json();
 
       setCreatedProcessoId(processoData.id);
       setTotalSteps(4);
       setStep(4);
-    } catch {
-      // handled silently
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro desconhecido");
     } finally {
       setSubmitting(false);
     }
@@ -809,10 +817,17 @@ export function CreateProcessDialog({
           </div>
         )}
 
+        {error && (
+          <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm font-semibold text-red-700">
+            {error}
+          </div>
+        )}
+
         <DialogFooter>
           <Button
             variant="outline"
             onClick={() => {
+              setError("");
               if (step === 1) {
                 onOpenChange(false);
               } else if (step === 4) {
@@ -831,6 +846,7 @@ export function CreateProcessDialog({
               onClick={() => setStep(step + 1)}
               disabled={step === 1 ? !canProceedStep1 : !canProceedStep2}
               className="bg-[#8B5CF6] hover:bg-[#7C3AED] text-white"
+              onMouseDown={() => setError("")}
             >
               Próximo
             </Button>
