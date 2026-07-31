@@ -2,6 +2,7 @@ import "server-only";
 
 import { clerkClient } from "@clerk/nextjs/server";
 import { getInvitationRedirectUrl } from "@/lib/app-url";
+import { ETAPAS_JURIDICAS_PADRAO } from "@/lib/kanban-defaults";
 import { prisma } from "@/lib/prisma";
 
 type ProvisionInput = {
@@ -16,14 +17,6 @@ type ProvisionInput = {
   masterTelefone?: string | null;
   adminId: string;
 };
-
-const etapasPadrao = [
-  { nome: "Triagem", cor: "#3B82F6", ordem: 1 },
-  { nome: "Análise", cor: "#F59E0B", ordem: 2 },
-  { nome: "Audiência", cor: "#EF4444", ordem: 3 },
-  { nome: "Protocolo", cor: "#8B5CF6", ordem: 4 },
-  { nome: "Finalizado", cor: "#10B981", ordem: 5 },
-];
 
 export async function provisionarEmpresa(input: ProvisionInput) {
   const email = input.email.trim().toLowerCase();
@@ -104,10 +97,10 @@ export async function provisionarEmpresa(input: ProvisionInput) {
           },
         }),
         tx.etapasKanban.createMany({
-          data: etapasPadrao.map((etapa) => ({
+          data: ETAPAS_JURIDICAS_PADRAO.map((etapa) => ({
             empresaId: created.id,
             ...etapa,
-            fixa: etapa.nome === "Finalizado",
+            fixa: false,
           })),
         }),
         tx.log.create({

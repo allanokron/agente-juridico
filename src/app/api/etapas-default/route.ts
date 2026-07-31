@@ -1,14 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser, isAdmin } from "@/lib/auth";
-
-const DEFAULT_ETAPAS = [
-  { nome: "Triagem", cor: "#3B82F6", ordem: 1 },
-  { nome: "Análise", cor: "#F59E0B", ordem: 2 },
-  { nome: "Audiência", cor: "#EF4444", ordem: 3 },
-  { nome: "Protocolo", cor: "#8B5CF6", ordem: 4 },
-  { nome: "Finalizado", cor: "#10B981", ordem: 5 },
-];
+import { ETAPAS_JURIDICAS_PADRAO } from "@/lib/kanban-defaults";
 
 export async function POST() {
   try {
@@ -40,13 +33,14 @@ export async function POST() {
     }
 
     const etapas = await prisma.$transaction(
-      DEFAULT_ETAPAS.map((etapa) =>
+      ETAPAS_JURIDICAS_PADRAO.map((etapa) =>
         prisma.etapasKanban.create({
           data: {
             empresaId,
             nome: etapa.nome,
             cor: etapa.cor,
             ordem: etapa.ordem,
+            fixa: false,
           },
         })
       )

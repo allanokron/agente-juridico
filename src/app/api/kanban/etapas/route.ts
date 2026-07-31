@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser, isAdmin } from "@/lib/auth";
+import { ETAPAS_JURIDICAS_PADRAO } from "@/lib/kanban-defaults";
+
+const ETAPAS_LEGADAS = ["Triagem", "Análise", "Audiência", "Protocolo", "Finalizado"];
 
 export async function GET() {
   try {
@@ -8,7 +11,7 @@ export async function GET() {
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     const empresaId = user.empresaId;
 
-    const etapas = await prisma.etapasKanban.findMany({
+    let etapas = await prisma.etapasKanban.findMany({
       where: { empresaId, ativo: true },
       include: {
         _count: {
@@ -17,6 +20,29 @@ export async function GET() {
       },
       orderBy: { ordem: "asc" },
     });
+
+    const usaPadraoLegado =
+      etapas.length === ETAPAS_LEGADAS.length &&
+      etapas.every((etapa, index) => etapa.nome === ETAPAS_LEGADAS[index]);
+
+    if (usaPadraoLegado) {
+      await prisma.$transaction(
+        etapas.map((etapa, index) =>
+          prisma.etapasKanban.update({
+            where: { id: etapa.id },
+            data: {
+              ...ETAPAS_JURIDICAS_PADRAO[index],
+              fixa: false,
+            },
+          })
+        )
+      );
+      etapas = await prisma.etapasKanban.findMany({
+        where: { empresaId, ativo: true },
+        include: { _count: { select: { cards: true } } },
+        orderBy: { ordem: "asc" },
+      });
+    }
 
     return NextResponse.json(etapas);
   } catch (error) {
