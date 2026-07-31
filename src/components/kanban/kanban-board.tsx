@@ -268,7 +268,7 @@ export function KanbanBoard({
   return (
     <>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-foreground">Kanban</h2>
+        <h2 className="text-lg font-semibold text-foreground">Suas Etapas</h2>
         {isAdmin && (
           <Button onClick={handleAddColumn} size="sm">
             <Plus className="h-4 w-4" />

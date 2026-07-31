@@ -89,7 +89,7 @@ export default function GestaoProcessosPage() {
       <div className="space-y-6">
         <PageHeader
           title="Gestão de Processos"
-          description="Visualize e gerencie seus processos no quadro Kanban"
+          description="Visualize e gerencie seus processos em suas etapas"
           action={{
             label: "Novo Processo",
             onClick: () => setIsDialogOpen(true),
