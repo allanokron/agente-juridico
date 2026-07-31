@@ -28,7 +28,25 @@ export async function GET(request: NextRequest) {
     },
     include: {
       responsavel: { select: { id: true, nome: true } },
-      empresaConvertida: { select: { id: true, nome: true, ativo: true } },
+      empresaConvertida: {
+        select: {
+          id: true,
+          nome: true,
+          ativo: true,
+          provisionamentoStatus: true,
+          provisionamentoErro: true,
+          masterUser: {
+            select: {
+              id: true,
+              email: true,
+              ativo: true,
+              clerkId: true,
+              clerkInvitationId: true,
+              conviteEnviadoEm: true,
+            },
+          },
+        },
+      },
       _count: { select: { atividades: true } },
     },
     orderBy: { updatedAt: "desc" },

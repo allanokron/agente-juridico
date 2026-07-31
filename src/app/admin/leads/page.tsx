@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Building2, Columns3, List, Loader2, Search } from "lucide-react";
+import { Building2, CheckCircle2, Columns3, List, Loader2, Mail, Search } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,21 @@ type Lead = {
   status: string;
   createdAt: string;
   updatedAt: string;
-  empresaConvertida?: { id: string; nome: string } | null;
+  empresaConvertida?: {
+    id: string;
+    nome: string;
+    ativo: boolean;
+    provisionamentoStatus: string;
+    provisionamentoErro?: string | null;
+    masterUser?: {
+      id: string;
+      email: string;
+      ativo: boolean;
+      clerkId?: string | null;
+      clerkInvitationId?: string | null;
+      conviteEnviadoEm?: string | null;
+    } | null;
+  } | null;
 };
 
 export default function AdminLeadsPage() {
@@ -40,6 +54,7 @@ export default function AdminLeadsPage() {
   const [selected, setSelected] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   async function load() {
     setLoading(true);
@@ -65,14 +80,24 @@ export default function AdminLeadsPage() {
 
   async function changeStatus(lead: Lead, status: string) {
     setSaving(true);
-    await fetch(`/api/admin/leads/${lead.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    setSelected((current) => current?.id === lead.id ? { ...current, status } : current);
-    await load();
-    setSaving(false);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/leads/${lead.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setError(result.error || "Não foi possível atualizar o lead.");
+        return;
+      }
+      await load();
+      const refreshed = await fetch(`/api/admin/leads/${lead.id}`).then((item) => item.json());
+      setSelected(refreshed);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -106,7 +131,7 @@ export default function AdminLeadsPage() {
                   </div>
                   <div className="space-y-3">
                     {items.map((lead) => (
-                      <button key={lead.id} onClick={() => setSelected(lead)} className="w-full rounded-xl border bg-white p-4 text-left shadow-sm transition hover:border-violet-300">
+                      <button key={lead.id} onClick={() => { setError(""); setSelected(lead); }} className="w-full rounded-xl border bg-white p-4 text-left shadow-sm transition hover:border-violet-300">
                         <p className="font-bold">{lead.escritorio}</p>
                         <p className="mt-1 text-sm text-slate-600">{lead.nomeContato}</p>
                         <p className="mt-3 text-xs text-slate-400">{new Date(lead.createdAt).toLocaleDateString("pt-BR")}</p>
@@ -150,10 +175,29 @@ export default function AdminLeadsPage() {
                 {statuses.map((status) => <option key={status} value={status}>{labels[status]}</option>)}
               </select>
             </label>
+            {error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p>}
             {!selected.empresaConvertida && (
-              <a href={`/admin/empresas?lead=${selected.id}`} className="mt-6 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 font-bold text-white">
-                <Building2 className="h-4 w-4" /> Converter em escritório
-              </a>
+              <Button disabled={saving} onClick={() => changeStatus(selected, "GANHO")} className="mt-6 h-12 w-full">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
+                Criar acesso e enviar convite
+              </Button>
+            )}
+            {selected.empresaConvertida?.masterUser && (
+              <div className="mt-6 rounded-2xl border p-4 text-sm">
+                <p className="flex items-center gap-2 font-extrabold">
+                  {selected.empresaConvertida.masterUser.ativo ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <Mail className="h-4 w-4 text-violet-600" />}
+                  {selected.empresaConvertida.masterUser.ativo ? "Acesso ativado" : "Convite enviado"}
+                </p>
+                <p className="mt-2 text-slate-600">{selected.empresaConvertida.masterUser.email}</p>
+                {selected.empresaConvertida.masterUser.conviteEnviadoEm && (
+                  <p className="mt-1 text-xs text-slate-400">Enviado em {new Date(selected.empresaConvertida.masterUser.conviteEnviadoEm).toLocaleString("pt-BR")}</p>
+                )}
+                {!selected.empresaConvertida.masterUser.ativo && (
+                  <Button variant="outline" disabled={saving} onClick={() => changeStatus(selected, "GANHO")} className="mt-4 w-full">
+                    Reenviar convite
+                  </Button>
+                )}
+              </div>
             )}
           </aside>
         </div>

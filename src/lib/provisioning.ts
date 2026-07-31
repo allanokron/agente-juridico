@@ -41,7 +41,10 @@ export async function provisionarEmpresa(input: ProvisionInput) {
     include: { masterUser: true },
   });
 
-  if (existing?.provisionamentoStatus === "PRONTO") {
+  if (
+    existing?.provisionamentoStatus === "PRONTO" &&
+    (existing.masterUser?.clerkId || existing.masterUser?.ativo)
+  ) {
     throw new Error("Este escritório já possui um ambiente ativo.");
   }
 
@@ -138,10 +141,73 @@ export async function provisionarEmpresa(input: ProvisionInput) {
 
   try {
     const client = await clerkClient();
+    const clerkUsers = await client.users.getUserList({
+      emailAddress: [empresa.masterUser.email],
+      limit: 1,
+    });
+    const existingClerkUser = clerkUsers.data[0];
+
+    if (existingClerkUser) {
+      await client.users.updateUserMetadata(existingClerkUser.id, {
+        publicMetadata: {
+          ...existingClerkUser.publicMetadata,
+          appUserId: empresa.masterUser.id,
+          empresaId: empresa.id,
+          master: true,
+        },
+      });
+
+      return await prisma.$transaction(async (tx) => {
+        await tx.usuario.update({
+          where: { id: empresa.masterUser!.id },
+          data: {
+            clerkId: existingClerkUser.id,
+            clerkInvitationId: null,
+            ativo: true,
+          },
+        });
+        const ready = await tx.empresa.update({
+          where: { id: empresa.id },
+          data: {
+            ativo: true,
+            provisionamentoStatus: "PRONTO",
+            provisionamentoErro: null,
+          },
+          include: {
+            masterUser: {
+              select: { id: true, nome: true, email: true, ativo: true },
+            },
+          },
+        });
+        if (empresa.leadOrigemId) {
+          await tx.lead.update({
+            where: { id: empresa.leadOrigemId },
+            data: {
+              status: "GANHO",
+              atividades: {
+                create: {
+                  autorId: input.adminId,
+                  tipo: "CONVERSAO",
+                  descricao: `Ambiente ${empresa.nome} vinculado à conta existente no acesso LEXO.`,
+                },
+              },
+            },
+          });
+        }
+        return ready;
+      });
+    }
+
+    if (empresa.masterUser.clerkInvitationId) {
+      await client.invitations
+        .revokeInvitation(empresa.masterUser.clerkInvitationId)
+        .catch(() => undefined);
+    }
     const invitation = await client.invitations.createInvitation({
       emailAddress: empresa.masterUser.email,
       expiresInDays: 30,
       notify: true,
+      ignoreExisting: true,
       redirectUrl: getInvitationRedirectUrl(),
       publicMetadata: {
         appUserId: empresa.masterUser.id,
