@@ -20,9 +20,23 @@ export async function GET(request: NextRequest) {
   if (!admin) {
     return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
   }
-  const empresaId = request.nextUrl.searchParams.get("empresaId");
+
+  const { searchParams } = request.nextUrl;
+  const empresaId = searchParams.get("empresaId") || undefined;
+  const busca = searchParams.get("busca") || undefined;
+
+  const where: Record<string, unknown> = {};
+  if (empresaId) where.empresaId = empresaId;
+  if (busca) {
+    where.OR = [
+      { nome: { contains: busca, mode: "insensitive" } },
+      { email: { contains: busca, mode: "insensitive" } },
+      { telefone: { contains: busca, mode: "insensitive" } },
+    ];
+  }
+
   const usuarios = await prisma.usuario.findMany({
-    where: empresaId ? { empresaId } : {},
+    where,
     select: {
       id: true,
       nome: true,

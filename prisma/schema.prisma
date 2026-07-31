@@ -104,6 +104,8 @@ model Empresa {
   email                 String?
   telefone              String?
   endereco              String?
+  cidade                String?
+  uf                    String?
   logo                  String?
   plano                 String                @default("free")
   ativo                 Boolean               @default(true)

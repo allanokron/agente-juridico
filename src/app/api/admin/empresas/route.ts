@@ -11,17 +11,39 @@ const createSchema = z.object({
   email: z.string().trim().email(),
   telefone: z.string().trim().max(30).optional().nullable(),
   endereco: z.string().trim().max(300).optional().nullable(),
+  cidade: z.string().trim().max(100).optional().nullable(),
+  uf: z.string().trim().max(2).optional().nullable(),
   masterNome: z.string().trim().min(2).max(120),
   masterEmail: z.string().trim().email(),
   masterTelefone: z.string().trim().max(30).optional().nullable(),
 });
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const admin = await getSuperAdmin();
   if (!admin) {
     return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
   }
+
+  const { searchParams } = request.nextUrl;
+  const busca = searchParams.get("busca") || undefined;
+  const uf = searchParams.get("uf") || undefined;
+  const cidade = searchParams.get("cidade") || undefined;
+  const plano = searchParams.get("plano") || undefined;
+
+  const where: Record<string, unknown> = {};
+  if (uf) where.uf = uf;
+  if (plano) where.plano = plano;
+  if (cidade) where.cidade = { contains: cidade, mode: "insensitive" };
+  if (busca) {
+    where.OR = [
+      { nome: { contains: busca, mode: "insensitive" } },
+      { cnpj: { contains: busca, mode: "insensitive" } },
+      { email: { contains: busca, mode: "insensitive" } },
+    ];
+  }
+
   const empresas = await prisma.empresa.findMany({
+    where,
     include: {
       masterUser: {
         select: {

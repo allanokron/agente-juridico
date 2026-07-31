@@ -8,6 +8,10 @@ const updateSchema = z.object({
   nome: z.string().trim().min(2).max(160).optional(),
   email: z.string().trim().email().optional(),
   telefone: z.string().trim().max(30).nullable().optional(),
+  endereco: z.string().trim().max(300).nullable().optional(),
+  cidade: z.string().trim().max(100).nullable().optional(),
+  uf: z.string().trim().max(2).nullable().optional(),
+  plano: z.string().trim().max(30).optional(),
   ativo: z.boolean().optional(),
 });
 
