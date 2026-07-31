@@ -100,6 +100,7 @@ export function CreateProcessDialog({
   const [selectedClienteId, setSelectedClienteId] = useState("");
   const [cpfCnpjWarning, setCpfCnpjWarning] = useState("");
   const [numeroProcessoWarning, setNumeroProcessoWarning] = useState("");
+  const [isPreProcesso, setIsPreProcesso] = useState(false);
   const [responsavelId, setResponsavelId] = useState("");
   const [dataRevisao, setDataRevisao] = useState("");
   const [hora, setHora] = useState("");
@@ -163,6 +164,7 @@ export function CreateProcessDialog({
       setSelectedClienteId("");
       setCpfCnpjWarning("");
       setNumeroProcessoWarning("");
+      setIsPreProcesso(false);
       setResponsavelId("");
       setDataRevisao("");
       setHora("");
@@ -295,7 +297,7 @@ export function CreateProcessDialog({
   );
 
   const canProceedStep1 = isExistingClient ? !!selectedClienteId : !!newCliente.nome;
-  const canProceedStep2 = !!processo.numeroProcesso && !!processo.tipoProcesso;
+  const canProceedStep2 = (isPreProcesso || !!processo.numeroProcesso) && !!processo.tipoProcesso;
   const canSubmit =
     !!responsavelId &&
     !submitting &&
@@ -344,6 +346,7 @@ export function CreateProcessDialog({
           clienteId,
           responsavelId,
           numeroProcesso: processo.numeroProcesso || null,
+          isPreProcesso,
           tribunal: processo.tribunal || null,
           vara: processo.vara || null,
           tipoProcesso: processo.tipoProcesso,
@@ -633,14 +636,32 @@ export function CreateProcessDialog({
 
         {step === 2 && (
           <div className="space-y-4 py-2">
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-violet-200 bg-violet-50/70 p-4">
+              <Checkbox
+                checked={isPreProcesso}
+                onCheckedChange={(checked) => {
+                  setIsPreProcesso(Boolean(checked));
+                  if (checked) setNumeroProcessoWarning("");
+                }}
+              />
+              <span>
+                <span className="block text-sm font-semibold">Cadastrar como pré-processo</span>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  Use enquanto o caso ainda não possui número judicial. Ele poderá ser convertido depois sem perder informações.
+                </span>
+              </span>
+            </label>
             <div className="grid gap-2">
-              <Label htmlFor="numeroProcesso">Número do Processo *</Label>
+              <Label htmlFor="numeroProcesso">
+                Número do Processo {isPreProcesso ? "(opcional)" : "*"}
+              </Label>
               <Input
                 id="numeroProcesso"
                 value={processo.numeroProcesso}
                 onChange={(e) => handleNumeroChange(e.target.value)}
                 onBlur={(e) => checkNumeroProcesso(e.target.value)}
                 placeholder="0000000-00.0000.0.00.0000"
+                disabled={isPreProcesso}
               />
               {numeroProcessoWarning && (
                 <p className="text-sm text-amber-600">{numeroProcessoWarning}</p>
@@ -772,7 +793,7 @@ export function CreateProcessDialog({
           <div className="space-y-4 py-2">
             <div className="text-center py-2">
               <p className="text-sm text-foreground/70">
-                Processo criado com sucesso!
+                {isPreProcesso ? "Pré-processo criado com sucesso!" : "Processo criado com sucesso!"}
               </p>
               <p className="text-xs text-muted-foreground/60 mt-1">
                 Opcionalmente, envie documentos para este processo.
@@ -825,7 +846,7 @@ export function CreateProcessDialog({
                   Criando...
                 </>
               ) : (
-                "Criar Processo"
+                isPreProcesso ? "Criar Pré-processo" : "Criar Processo"
               )}
             </Button>
           ) : (

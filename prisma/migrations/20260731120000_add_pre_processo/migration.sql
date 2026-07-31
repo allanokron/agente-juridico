@@ -1,0 +1,2 @@
+ALTER TABLE "processos"
+ADD COLUMN "isPreProcesso" BOOLEAN NOT NULL DEFAULT false;

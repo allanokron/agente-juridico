@@ -7,6 +7,7 @@ interface KanbanCardProps {
   card: {
     id: string;
     numeroProcesso: string;
+    isPreProcesso: boolean;
     nomeCliente: string;
     responsavel: string | null;
     dataRevisao: string | null;
@@ -92,13 +93,22 @@ export function KanbanCard({ card, onClick, onDragStart }: KanbanCardProps) {
       draggable
       onDragStart={(e) => onDragStart(e, card.id)}
       onClick={onClick}
-      className="cursor-pointer hover:shadow-md transition-shadow bg-white border-border p-3"
+      className={`cursor-pointer p-3 transition-shadow hover:shadow-md ${
+        card.isPreProcesso
+          ? "border-amber-300 bg-amber-50 ring-1 ring-amber-200/70"
+          : "border-border bg-white"
+      }`}
     >
       <div className="flex items-start gap-2">
         <GripVertical className="h-4 w-4 text-muted-foreground/40 shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-foreground truncate">
-            {card.numeroProcesso || "Sem numero"}
+          {card.isPreProcesso && (
+            <span className="mb-1.5 inline-flex rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900">
+              Pré-processo
+            </span>
+          )}
+          <p className="truncate text-sm font-medium text-foreground">
+            {card.numeroProcesso || (card.isPreProcesso ? "Aguardando número" : "Sem número")}
           </p>
           <p className="text-xs text-muted-foreground truncate mt-0.5">
             {card.nomeCliente}

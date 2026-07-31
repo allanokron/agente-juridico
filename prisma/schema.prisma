@@ -293,6 +293,7 @@ model Processo {
   clienteId      String
   responsavelId  String
   numeroProcesso String?
+  isPreProcesso  Boolean        @default(false)
   tribunal       String?
   vara           String?
   tipoProcesso   String

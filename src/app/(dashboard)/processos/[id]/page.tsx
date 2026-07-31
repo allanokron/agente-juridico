@@ -69,6 +69,7 @@ type Comment = {
 type ProcessDetail = {
   id: string;
   numeroProcesso?: string | null;
+  isPreProcesso: boolean;
   tribunal?: string | null;
   vara?: string | null;
   tipoProcesso: string;
@@ -150,6 +151,7 @@ export default function ProcessDetailPage({ params }: { params: Promise<{ id: st
   const [documentsVersion, setDocumentsVersion] = useState(0);
   const [form, setForm] = useState({
     numeroProcesso: "",
+    isPreProcesso: false,
     tribunal: "",
     vara: "",
     tipoProcesso: "CIVIL",
@@ -193,6 +195,7 @@ export default function ProcessDetailPage({ params }: { params: Promise<{ id: st
       setProcess(data);
       setForm({
         numeroProcesso: data.numeroProcesso || "",
+        isPreProcesso: data.isPreProcesso,
         tribunal: data.tribunal || "",
         vara: data.vara || "",
         tipoProcesso: data.tipoProcesso,
@@ -215,6 +218,7 @@ export default function ProcessDetailPage({ params }: { params: Promise<{ id: st
 
   const saveProcess = async () => {
     if (!process?.kanbanCard) return;
+    if (!form.isPreProcesso && !form.numeroProcesso.trim()) return;
     setSaving(true);
     try {
       const [processResponse, cardResponse] = await Promise.all([
@@ -223,6 +227,7 @@ export default function ProcessDetailPage({ params }: { params: Promise<{ id: st
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             numeroProcesso: form.numeroProcesso || null,
+            isPreProcesso: form.isPreProcesso,
             tribunal: form.tribunal || null,
             vara: form.vara || null,
             tipoProcesso: form.tipoProcesso,
@@ -323,13 +328,17 @@ export default function ProcessDetailPage({ params }: { params: Promise<{ id: st
             </Button>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold">{process.numeroProcesso || "Processo sem número"}</h1>
+                <h1 className="text-2xl font-bold">{process.numeroProcesso || (process.isPreProcesso ? "Pré-processo" : "Processo sem número")}</h1>
+                {process.isPreProcesso && <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Pré-processo</Badge>}
                 <Badge>{process.kanbanCard?.etapa.nome || process.status}</Badge>
               </div>
               <p className="text-sm text-muted-foreground">{process.cliente.nome}</p>
             </div>
           </div>
-          <Button onClick={saveProcess} disabled={saving}>
+          <Button
+            onClick={saveProcess}
+            disabled={saving || (!form.isPreProcesso && !form.numeroProcesso.trim())}
+          >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Salvar alterações
           </Button>
@@ -340,9 +349,24 @@ export default function ProcessDetailPage({ params }: { params: Promise<{ id: st
             <Card>
               <CardHeader><CardTitle>Dados do processo</CardTitle></CardHeader>
               <CardContent className="grid gap-4 md:grid-cols-2">
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 md:col-span-2">
+                  <Checkbox
+                    checked={form.isPreProcesso}
+                    onCheckedChange={(checked) => setForm({ ...form, isPreProcesso: Boolean(checked) })}
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold">Este cadastro é um pré-processo</span>
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      Para convertê-lo, desmarque esta opção, informe o número do processo e salve.
+                    </span>
+                  </span>
+                </label>
                 <div className="space-y-2">
-                  <Label>Número</Label>
+                  <Label>Número {form.isPreProcesso ? "(opcional)" : "*"}</Label>
                   <Input value={form.numeroProcesso} onChange={(event) => setForm({ ...form, numeroProcesso: event.target.value })} />
+                  {!form.isPreProcesso && !form.numeroProcesso.trim() && (
+                    <p className="text-xs font-medium text-amber-700">Informe o número para concluir a conversão.</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Responsável</Label>

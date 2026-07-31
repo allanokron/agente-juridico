@@ -17,6 +17,7 @@ interface CardData {
   id: string;
   processoId: string;
   numeroProcesso: string;
+  isPreProcesso: boolean;
   nomeCliente: string;
   responsavel: string | null;
   dataRevisao: string | null;

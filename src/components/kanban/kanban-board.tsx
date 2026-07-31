@@ -27,6 +27,7 @@ interface Card {
   id: string;
   processoId: string;
   numeroProcesso: string;
+  isPreProcesso: boolean;
   nomeCliente: string;
   responsavel: string | null;
   dataRevisao: string | null;
@@ -103,6 +104,7 @@ export function KanbanBoard({
             id: c.id,
             processoId: (c.processo as Record<string, unknown>)?.id as string,
             numeroProcesso: (c.processo as Record<string, unknown>)?.numeroProcesso ?? null,
+            isPreProcesso: Boolean((c.processo as Record<string, unknown>)?.isPreProcesso),
             nomeCliente: ((c.processo as Record<string, unknown>)?.cliente as Record<string, unknown>)?.nome ?? null,
             responsavel: ((c.processo as Record<string, unknown>)?.responsavel as Record<string, unknown>)?.nome ?? null,
             dataRevisao: c.dataRevisao,

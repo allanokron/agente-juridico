@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
       observacoes,
       dataRevisao,
       hora,
+      isPreProcesso = false,
     } = body;
     const atribuicoes: string[] = Array.isArray(body.atribuicoes)
       ? [...new Set<string>(body.atribuicoes.map((value: unknown) => String(value)))]
@@ -75,6 +76,12 @@ export async function POST(request: NextRequest) {
     if (!clienteId || !responsavelId || !tipoProcesso) {
       return NextResponse.json(
         { error: "Cliente, responsável e tipo do processo são obrigatórios" },
+        { status: 400 }
+      );
+    }
+    if (!isPreProcesso && !numeroProcesso?.trim()) {
+      return NextResponse.json(
+        { error: "O número é obrigatório para um processo definitivo" },
         { status: 400 }
       );
     }
@@ -123,7 +130,8 @@ export async function POST(request: NextRequest) {
           empresaId: user.empresaId,
           clienteId,
           responsavelId,
-          numeroProcesso,
+          numeroProcesso: numeroProcesso?.trim() || null,
+          isPreProcesso: Boolean(isPreProcesso),
           tribunal,
           vara,
           tipoProcesso,
@@ -155,7 +163,7 @@ export async function POST(request: NextRequest) {
         data: {
           processoId: processo.id,
           usuarioId: user.id,
-          descricao: "Processo criado",
+          descricao: isPreProcesso ? "Pré-processo criado" : "Processo criado",
           tipo: "criacao",
         },
       });

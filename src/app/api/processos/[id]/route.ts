@@ -88,7 +88,19 @@ export async function PUT(
       tipoProcesso,
       status,
       observacoes,
+      isPreProcesso,
     } = body;
+
+    const nextIsPreProcesso =
+      isPreProcesso !== undefined ? Boolean(isPreProcesso) : existing.isPreProcesso;
+    const nextNumeroProcesso =
+      numeroProcesso !== undefined ? numeroProcesso?.trim() || null : existing.numeroProcesso;
+    if (!nextIsPreProcesso && !nextNumeroProcesso) {
+      return NextResponse.json(
+        { error: "Preencha o número antes de converter o pré-processo" },
+        { status: 400 }
+      );
+    }
 
     const changes: Record<string, { antes: unknown; depois: unknown }> = {};
     const candidates = {
@@ -100,6 +112,7 @@ export async function PUT(
       tipoProcesso,
       status,
       observacoes,
+      isPreProcesso,
     };
     for (const [field, value] of Object.entries(candidates)) {
       if (value !== undefined && existing[field as keyof typeof existing] !== value) {
@@ -116,12 +129,13 @@ export async function PUT(
         data: {
           ...(clienteId !== undefined && { clienteId }),
           ...(responsavelId !== undefined && { responsavelId }),
-          ...(numeroProcesso !== undefined && { numeroProcesso }),
+          ...(numeroProcesso !== undefined && { numeroProcesso: nextNumeroProcesso }),
           ...(tribunal !== undefined && { tribunal }),
           ...(vara !== undefined && { vara }),
           ...(tipoProcesso !== undefined && { tipoProcesso }),
           ...(status !== undefined && { status }),
           ...(observacoes !== undefined && { observacoes }),
+          ...(isPreProcesso !== undefined && { isPreProcesso: nextIsPreProcesso }),
         },
         include: {
           cliente: true,
