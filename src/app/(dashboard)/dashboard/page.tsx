@@ -7,6 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from "@/components/ui/dialog";
 import {
   Briefcase,
   Clock,
@@ -92,8 +101,11 @@ export default function DashboardPage() {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [view, setView] = useState<"semana" | "mes">("mes");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [pendingDates, setPendingDates] = useState<Record<string, string>>({});
-  const [pendingTimes, setPendingTimes] = useState<Record<string, string>>({});
+
+  const [editingCard, setEditingCard] = useState<KanbanActivity | null>(null);
+  const [editDate, setEditDate] = useState("");
+  const [editTime, setEditTime] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -112,17 +124,27 @@ export default function DashboardPage() {
     fetchData();
   }, [fetchData]);
 
-  const handleDateUpdate = async (cardId: string) => {
-    setUpdatingId(cardId);
+  const openEditDialog = (activity: KanbanActivity) => {
+    setEditingCard(activity);
+    setEditDate(
+      activity.dataRevisao
+        ? format(new Date(activity.dataRevisao), "yyyy-MM-dd")
+        : ""
+    );
+    setEditTime(activity.hora ?? "");
+    setDialogOpen(true);
+  };
+
+  const handleDialogSave = async () => {
+    if (!editingCard) return;
+    setUpdatingId(editingCard.id);
     try {
-      const newDate = pendingDates[cardId] ?? "";
-      const newTime = pendingTimes[cardId] ?? undefined;
-      const res = await fetch(`/api/kanban/cards/${cardId}`, {
+      const res = await fetch(`/api/kanban/cards/${editingCard.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dataRevisao: newDate || null,
-          ...(newTime !== undefined && { hora: newTime || null }),
+          dataRevisao: editDate || null,
+          hora: editTime || null,
         }),
       });
       if (!res.ok) throw new Error("Erro ao atualizar");
@@ -130,8 +152,12 @@ export default function DashboardPage() {
       setData((prev) => {
         if (!prev) return prev;
         const updateCard = (card: KanbanActivity) =>
-          card.id === cardId
-            ? { ...card, dataRevisao: updated.dataRevisao ?? card.dataRevisao, hora: updated.hora ?? card.hora }
+          card.id === editingCard.id
+            ? {
+                ...card,
+                dataRevisao: updated.dataRevisao ?? card.dataRevisao,
+                hora: updated.hora ?? card.hora,
+              }
             : card;
         return {
           ...prev,
@@ -141,6 +167,8 @@ export default function DashboardPage() {
           atrasados: prev.atrasados.map(updateCard),
         };
       });
+      setDialogOpen(false);
+      setEditingCard(null);
     } catch (err) {
       console.error("Erro ao atualizar data:", err);
     } finally {
@@ -180,7 +208,9 @@ export default function DashboardPage() {
     <DashboardLayout>
       <div className="space-y-8">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">
+            Dashboard
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Visao geral dos seus processos e atividades
           </p>
@@ -307,29 +337,33 @@ export default function DashboardPage() {
                         </span>
                         <div className="mt-1 space-y-0.5">
                           {dayActivities.slice(0, 4).map((activity) => (
-                            <div
+                            <button
                               key={activity.id}
-                              className="flex items-center gap-1 rounded-lg px-1.5 py-0.5 text-[10px] leading-tight truncate"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditDialog(activity);
+                              }}
+                              title={`Etapa: ${activity.etapa.nome}\nProcesso: ${activity.processo.numeroProcesso || "S/N"}\nCliente: ${activity.processo.cliente.nome}\nClique para editar data/hora`}
+                              className="block w-full text-left rounded-md px-1.5 py-0.5 border-l-[3px] leading-tight truncate"
                               style={{
                                 backgroundColor: activity.etapa.cor
                                   ? `${activity.etapa.cor}18`
                                   : "#F1F5F9",
-                                color: activity.etapa.cor || "#6B7280",
+                                borderLeftColor:
+                                  activity.etapa.cor || "#9CA3AF",
                               }}
                             >
-                              <div
-                                className="w-1 h-1 rounded-full shrink-0"
-                                style={{
-                                  backgroundColor: activity.etapa.cor || "#9CA3AF",
-                                }}
-                              />
-                              <span className="truncate font-medium">
-                                {activity.hora
-                                  ? `${activity.hora} `
-                                  : ""}
-                                {activity.etapa.nome}
+                              <span className="block text-[9px] font-bold text-muted-foreground leading-tight">
+                                {activity.hora || "s/ horario"}
                               </span>
-                            </div>
+                              <span className="block text-[10px] font-semibold text-foreground leading-tight truncate">
+                                {activity.processo.numeroProcesso || "S/N"}
+                              </span>
+                              <span className="block text-[9px] text-muted-foreground leading-tight truncate">
+                                {activity.processo.cliente.nome}
+                              </span>
+                            </button>
                           ))}
                           {dayActivities.length > 4 && (
                             <div className="text-[10px] text-muted-foreground font-medium px-1">
@@ -375,9 +409,7 @@ export default function DashboardPage() {
                           className={`text-lg font-semibold ${
                             isCurrentDay && !isSelected
                               ? "text-[#8B5CF6]"
-                              : isSelected
-                                ? "text-foreground"
-                                : "text-foreground"
+                              : "text-foreground"
                           }`}
                         >
                           {format(day, "d")}
@@ -391,32 +423,33 @@ export default function DashboardPage() {
                         ) : (
                           <>
                             {dayActivities.map((activity) => (
-                              <div
+                              <button
                                 key={activity.id}
-                                className="flex items-start gap-1 rounded-lg px-1.5 py-1 text-[11px] leading-tight"
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditDialog(activity);
+                                }}
+                                title={`Etapa: ${activity.etapa.nome}\nCliente: ${activity.processo.cliente.nome}\nClique para editar data/hora`}
+                                className="block w-full text-left rounded-lg px-1.5 py-1 text-[11px] leading-tight border-l-[3px]"
                                 style={{
                                   backgroundColor: activity.etapa.cor
                                     ? `${activity.etapa.cor}12`
                                     : "#F8FAFC",
+                                  borderLeftColor:
+                                    activity.etapa.cor || "#9CA3AF",
                                 }}
                               >
-                                <div
-                                  className="w-1.5 h-1.5 rounded-full shrink-0 mt-0.5"
-                                  style={{
-                                    backgroundColor:
-                                      activity.etapa.cor || "#9CA3AF",
-                                  }}
-                                />
-                                <div className="min-w-0">
-                                  <div className="font-medium text-foreground truncate">
-                                    {activity.hora || "s/ horario"}
-                                  </div>
-                                  <div className="text-muted-foreground truncate">
-                                    {activity.processo.numeroProcesso || "S/N"} -{" "}
-                                    {activity.etapa.nome}
-                                  </div>
-                                </div>
-                              </div>
+                                <span className="block font-bold text-foreground leading-tight">
+                                  {activity.hora || "s/ horario"}
+                                </span>
+                                <span className="block text-muted-foreground truncate leading-tight">
+                                  {activity.processo.numeroProcesso || "S/N"}
+                                </span>
+                                <span className="block text-muted-foreground truncate leading-tight text-[10px]">
+                                  {activity.processo.cliente.nome}
+                                </span>
+                              </button>
                             ))}
                             {totalActivities > 8 && (
                               <div className="text-[10px] text-muted-foreground font-medium text-center px-1">
@@ -435,7 +468,9 @@ export default function DashboardPage() {
             {/* Day Detail Panel */}
             <div className="border-t border-border pt-4">
               <h4 className="text-sm font-semibold text-foreground mb-3">
-                {format(selectedDate, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                {format(selectedDate, "dd 'de' MMMM 'de' yyyy", {
+                  locale: ptBR,
+                })}
               </h4>
               {selectedDayActivities.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
@@ -450,11 +485,13 @@ export default function DashboardPage() {
                       !isToday(new Date(activity.dataRevisao));
 
                     return (
-                      <div
+                      <button
                         key={activity.id}
-                        className={`flex items-center justify-between rounded-xl border p-4 transition-colors ${
+                        type="button"
+                        onClick={() => openEditDialog(activity)}
+                        className={`w-full text-left flex items-center justify-between rounded-xl border p-4 transition-colors cursor-pointer ${
                           isOverdue
-                            ? "border-destructive/20 bg-destructive/5"
+                            ? "border-destructive/20 bg-destructive/5 hover:bg-destructive/10"
                             : "border-border hover:bg-muted/30"
                         }`}
                       >
@@ -470,11 +507,16 @@ export default function DashboardPage() {
                           <div>
                             <p
                               className={`text-sm font-semibold ${
-                                isOverdue ? "text-destructive" : "text-foreground"
+                                isOverdue
+                                  ? "text-destructive"
+                                  : "text-foreground"
                               }`}
                             >
-                              {activity.processo.numeroProcesso || "Sem numero"} -{" "}
-                              {activity.etapa.nome}
+                              {activity.processo.numeroProcesso || "Sem numero"}{" "}
+                              - {activity.etapa.nome}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {activity.processo.cliente.nome}
                             </p>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                               {activity.hora && (
@@ -484,7 +526,10 @@ export default function DashboardPage() {
                               )}
                               {activity.dataRevisao && (
                                 <span>
-                                  {format(new Date(activity.dataRevisao), "dd/MM/yyyy")}
+                                  {format(
+                                    new Date(activity.dataRevisao),
+                                    "dd/MM/yyyy"
+                                  )}
                                 </span>
                               )}
                             </div>
@@ -499,55 +544,9 @@ export default function DashboardPage() {
                               ATRASADO
                             </Badge>
                           )}
-                          <div className="flex items-center gap-1.5">
-                            <Input
-                              type="date"
-                              className="w-36 h-9 text-xs"
-                              value={
-                                pendingDates[activity.id] ??
-                                (activity.dataRevisao
-                                  ? format(
-                                      new Date(activity.dataRevisao),
-                                      "yyyy-MM-dd"
-                                    )
-                                  : "")
-                              }
-                              onChange={(e) =>
-                                setPendingDates((prev) => ({
-                                  ...prev,
-                                  [activity.id]: e.target.value,
-                                }))
-                              }
-                              disabled={updatingId === activity.id}
-                            />
-                            <Input
-                              type="time"
-                              className="w-24 h-9 text-xs"
-                              value={
-                                pendingTimes[activity.id] ??
-                                activity.hora ??
-                                ""
-                              }
-                              onChange={(e) =>
-                                setPendingTimes((prev) => ({
-                                  ...prev,
-                                  [activity.id]: e.target.value,
-                                }))
-                              }
-                              disabled={updatingId === activity.id}
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-9 text-xs"
-                              onClick={() => handleDateUpdate(activity.id)}
-                              disabled={updatingId === activity.id}
-                            >
-                              Atualizar
-                            </Button>
-                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -556,6 +555,76 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar data e horario</DialogTitle>
+          </DialogHeader>
+          {editingCard && (
+            <div className="space-y-4">
+              <div
+                className="flex items-center gap-2 rounded-lg px-3 py-2"
+                style={{
+                  backgroundColor: editingCard.etapa.cor
+                    ? `${editingCard.etapa.cor}18`
+                    : "#F1F5F9",
+                }}
+              >
+                <div
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{
+                    backgroundColor: editingCard.etapa.cor || "#9CA3AF",
+                  }}
+                />
+                <span className="text-sm font-medium text-foreground">
+                  {editingCard.etapa.nome}
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-xs text-muted-foreground">
+                  {editingCard.processo.numeroProcesso || "S/N"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {editingCard.processo.cliente.nome}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-date">Data</Label>
+                <Input
+                  id="edit-date"
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  disabled={updatingId === editingCard.id}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-time">Horario</Label>
+                <Input
+                  id="edit-time"
+                  type="time"
+                  value={editTime}
+                  onChange={(e) => setEditTime(e.target.value)}
+                  disabled={updatingId === editingCard.id}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>
+              Cancelar
+            </DialogClose>
+            <Button
+              onClick={handleDialogSave}
+              disabled={updatingId === editingCard?.id}
+            >
+              {updatingId === editingCard?.id ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
