@@ -40,6 +40,7 @@ const EMPRESA_ID = "empresa-1";
 interface Processo {
   id: string;
   numeroProcesso: string | null;
+  isPreProcesso: boolean;
   cliente: { id: string; nome: string; cpfCnpj: string | null };
   responsavel: { id: string; nome: string; email: string };
   tribunal: string | null;
@@ -90,6 +91,7 @@ export default function ProcessesPage() {
   const [filterResponsavel, setFilterResponsavel] = useState("all");
   const [filterEtapa, setFilterEtapa] = useState("all");
   const [filterTipo, setFilterTipo] = useState("all");
+  const [filterPreProcesso, setFilterPreProcesso] = useState("all");
   const [filterDataInicio, setFilterDataInicio] = useState("");
   const [filterDataFim, setFilterDataFim] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -149,11 +151,16 @@ export default function ProcessesPage() {
     const matchesTipo =
       filterTipo === "all" || p.tipoProcesso === filterTipo;
 
+    const matchesPreProcesso =
+      filterPreProcesso === "all" ||
+      (filterPreProcesso === "pre" && p.isPreProcesso) ||
+      (filterPreProcesso === "processo" && !p.isPreProcesso);
+
     const processoDate = new Date(p.dataCadastro);
     const matchesDataInicio = !filterDataInicio || processoDate >= new Date(filterDataInicio);
     const matchesDataFim = !filterDataFim || processoDate <= new Date(filterDataFim + "T23:59:59");
 
-    return matchesSearch && matchesResponsavel && matchesEtapa && matchesTipo && matchesDataInicio && matchesDataFim;
+    return matchesSearch && matchesResponsavel && matchesEtapa && matchesTipo && matchesPreProcesso && matchesDataInicio && matchesDataFim;
   });
 
   const handleCreated = () => {
@@ -166,6 +173,7 @@ export default function ProcessesPage() {
     filterResponsavel !== "all" ||
     filterEtapa !== "all" ||
     filterTipo !== "all" ||
+    filterPreProcesso !== "all" ||
     !!filterDataInicio ||
     !!filterDataFim;
 
@@ -213,6 +221,7 @@ export default function ProcessesPage() {
                 setFilterResponsavel("all");
                 setFilterEtapa("all");
                 setFilterTipo("all");
+                setFilterPreProcesso("all");
                 setFilterDataInicio("");
                 setFilterDataFim("");
               }}>
@@ -293,6 +302,19 @@ export default function ProcessesPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-muted-foreground">Tipo de cadastro</Label>
+                <Select value={filterPreProcesso} onValueChange={(v) => setFilterPreProcesso(v ?? "all")}>
+                  <SelectTrigger className="w-[160px] h-9">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="processo">Processos</SelectItem>
+                    <SelectItem value="pre">Pré-processos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
         </div>
@@ -328,11 +350,18 @@ export default function ProcessesPage() {
                   {filteredProcessos.map((processo) => (
                     <TableRow
                       key={processo.id}
-                      className="cursor-pointer hover:bg-muted/30"
+                      className={`cursor-pointer hover:bg-muted/30 ${processo.isPreProcesso ? "bg-amber-50/50" : ""}`}
                       onClick={() => router.push(`/processos/${processo.id}`)}
                     >
                       <TableCell className="font-mono text-sm">
-                        {processo.numeroProcesso || "—"}
+                        {processo.isPreProcesso ? (
+                          <div className="flex items-center gap-2">
+                            <span>{processo.numeroProcesso || "Sem número"}</span>
+                            <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-[10px]">Pré</Badge>
+                          </div>
+                        ) : (
+                          processo.numeroProcesso || "—"
+                        )}
                       </TableCell>
                       <TableCell>
                         <div>

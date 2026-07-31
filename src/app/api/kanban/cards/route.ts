@@ -108,10 +108,10 @@ export async function POST(request: NextRequest) {
         data: {
           processoId: existingCard.processoId,
           usuarioId: user.id,
-          descricao: `Card movido de "${existingCard.etapa.nome}" para "${newEtapa?.nome || "Etapa desconhecida"}"`,
+          descricao: `Card movido de "${existingCard.etapa?.nome || "Sem etapa"}" para "${newEtapa?.nome || "Etapa desconhecida"}"`,
           tipo: "movimentacao_kanban",
           detalhes: {
-            etapaAnterior: existingCard.etapa.nome,
+            etapaAnterior: existingCard.etapa?.nome,
             etapaNova: newEtapa?.nome,
           },
         },

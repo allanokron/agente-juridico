@@ -73,6 +73,10 @@ export async function POST(request: NextRequest) {
       ? [...new Set<string>(body.atribuicoes.map((value: unknown) => String(value)))]
       : [];
 
+    if (!atribuicoes.includes(user.id) && user.id !== responsavelId) {
+      atribuicoes.push(user.id);
+    }
+
     if (!clienteId || !responsavelId || !tipoProcesso) {
       return NextResponse.json(
         { error: "Cliente, responsável e tipo do processo são obrigatórios" },
@@ -144,6 +148,18 @@ export async function POST(request: NextRequest) {
             empresaId: user.empresaId,
             processoId: processo.id,
             etapaId: primeiraEtapa.id,
+            dataRevisao: dataRevisao
+              ? new Date(`${dataRevisao}T12:00:00`)
+              : null,
+            hora: hora || null,
+          },
+        });
+      } else {
+        await tx.kanbanCard.create({
+          data: {
+            empresaId: user.empresaId,
+            processoId: processo.id,
+            etapaId: null,
             dataRevisao: dataRevisao
               ? new Date(`${dataRevisao}T12:00:00`)
               : null,

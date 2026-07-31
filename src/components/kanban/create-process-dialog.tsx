@@ -389,6 +389,21 @@ export function CreateProcessDialog({
 
         {step === 1 && (
           <div className="space-y-4 py-2">
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <Checkbox
+                checked={isPreProcesso}
+                onCheckedChange={(checked) => {
+                  setIsPreProcesso(Boolean(checked));
+                  if (checked) setNumeroProcessoWarning("");
+                }}
+              />
+              <span>
+                <span className="block text-sm font-semibold">Cadastrar como pré-processo</span>
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  Use enquanto o caso ainda não possui número judicial. O número poderá ser informado depois.
+                </span>
+              </span>
+            </label>
             <div className="flex gap-2">
               <Button
                 variant={isExistingClient ? "default" : "outline"}
@@ -636,21 +651,6 @@ export function CreateProcessDialog({
 
         {step === 2 && (
           <div className="space-y-4 py-2">
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-violet-200 bg-violet-50/70 p-4">
-              <Checkbox
-                checked={isPreProcesso}
-                onCheckedChange={(checked) => {
-                  setIsPreProcesso(Boolean(checked));
-                  if (checked) setNumeroProcessoWarning("");
-                }}
-              />
-              <span>
-                <span className="block text-sm font-semibold">Cadastrar como pré-processo</span>
-                <span className="mt-1 block text-xs text-muted-foreground">
-                  Use enquanto o caso ainda não possui número judicial. Ele poderá ser convertido depois sem perder informações.
-                </span>
-              </span>
-            </label>
             <div className="grid gap-2">
               <Label htmlFor="numeroProcesso">
                 Número do Processo {isPreProcesso ? "(opcional)" : "*"}
