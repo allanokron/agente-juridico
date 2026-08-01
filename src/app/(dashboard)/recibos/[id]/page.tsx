@@ -107,50 +107,60 @@ function extensoGrupo(n: number): string {
   }
   const c = Math.floor(n / 100);
   const resto = n % 100;
-  if (resto === 0) return CENTENAS[c];
+  if (resto === 0) {
+    if (c === 1) return "cem";
+    return CENTENAS[c];
+  }
   if (c === 1) return "cento e " + extensoGrupo(resto);
   return CENTENAS[c] + " e " + extensoGrupo(resto);
 }
 
 function valorPorExtenso(valor: number): string {
-  if (valor === 0) return "zero reais";
-
   const inteiro = Math.floor(valor);
   const centavos = Math.round((valor - inteiro) * 100);
 
-  const grupos: string[] = [];
-  let temp = inteiro;
+  let resultado = "";
 
-  if (temp >= 1_000_000_000) {
-    const bilhoes = Math.floor(temp / 1_000_000_000);
-    grupos.push(
-      bilhoes === 1 ? "um bilhão" : extensoGrupo(bilhoes) + " bilhões"
-    );
-    temp %= 1_000_000_000;
+  if (inteiro === 0) {
+    resultado = "zero";
+  } else {
+    const grupos: string[] = [];
+    let temp = inteiro;
+
+    if (temp >= 1_000_000_000) {
+      const bilhoes = Math.floor(temp / 1_000_000_000);
+      if (bilhoes === 1) {
+        grupos.push("um bilhão");
+      } else {
+        grupos.push(extensoGrupo(bilhoes) + " bilhões");
+      }
+      temp %= 1_000_000_000;
+    }
+
+    if (temp >= 1_000_000) {
+      const milhoes = Math.floor(temp / 1_000_000);
+      if (milhoes === 1) {
+        grupos.push("um milhão");
+      } else {
+        grupos.push(extensoGrupo(milhoes) + " milhões");
+      }
+      temp %= 1_000_000;
+    }
+
+    if (temp >= 1_000) {
+      const mil = Math.floor(temp / 1_000);
+      grupos.push(mil === 1 ? "mil" : extensoGrupo(mil) + " mil");
+      temp %= 1_000;
+    }
+
+    if (temp > 0) {
+      grupos.push(extensoGrupo(temp));
+    }
+
+    resultado = grupos.join(", ");
   }
 
-  if (temp >= 1_000_000) {
-    const milhoes = Math.floor(temp / 1_000_000);
-    grupos.push(
-      milhoes === 1 ? "um milhão" : extensoGrupo(milhoes) + " milhões"
-    );
-    temp %= 1_000_000;
-  }
-
-  if (temp >= 1_000) {
-    const mil = Math.floor(temp / 1_000);
-    grupos.push(mil === 1 ? "mil" : extensoGrupo(mil) + " mil");
-    temp %= 1_000;
-  }
-
-  if (temp > 0) {
-    grupos.push(extensoGrupo(temp));
-  }
-
-  let resultado = grupos.join(", ");
-  if (inteiro !== 0) {
-    resultado += inteiro === 1 ? " real" : " reais";
-  }
+  resultado += inteiro === 1 ? " real" : " reais";
 
   if (centavos > 0) {
     const centavosStr = extensoGrupo(centavos);
