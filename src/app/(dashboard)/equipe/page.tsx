@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { AvatarUpload } from "@/components/shared/avatar-upload";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/auth-context";
+import { toast } from "sonner";
 
 interface Cargo {
   id: string;
@@ -74,6 +76,7 @@ interface MemberFormData {
   email: string;
   telefone: string;
   cargoId: string;
+  avatar: string | null;
 }
 
 interface CargoFormData {
@@ -132,6 +135,7 @@ const initialMemberForm: MemberFormData = {
   email: "",
   telefone: "",
   cargoId: "",
+  avatar: null,
 };
 
 const initialCargoForm: CargoFormData = {
@@ -260,6 +264,7 @@ export default function TeamPage() {
       email: member.email,
       telefone: member.telefone ?? "",
       cargoId: member.cargoId ?? "",
+      avatar: member.avatar ?? null,
     });
     setIsMemberDialogOpen(true);
   };
@@ -272,6 +277,7 @@ export default function TeamPage() {
         email: memberForm.email,
         telefone: memberForm.telefone || null,
         cargoId: memberForm.cargoId || null,
+        avatar: memberForm.avatar,
       };
 
       if (editingMember) {
@@ -416,7 +422,7 @@ export default function TeamPage() {
   };
 
   return (
-    <DashboardLayout isAdmin={user?.role === "SUPER_ADMIN" || user?.role === "ADMINISTRADOR"}>
+    <DashboardLayout>
       <div className="space-y-6">
         <PageHeader
           title="Equipe"
@@ -482,7 +488,7 @@ export default function TeamPage() {
                             <p className="text-sm text-muted-foreground">{member.email}</p>
                           </div>
                         </div>
-                        {isManager && (
+                        {(isManager || member.id === user?.id) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg hover:bg-muted hover:text-foreground cursor-pointer outline-none">
                             <MoreHorizontal className="h-4 w-4" />
@@ -490,8 +496,9 @@ export default function TeamPage() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleEditMember(member)}>
                               <Pencil className="h-4 w-4 mr-2" />
-                              Editar
+                              {member.id === user?.id ? "Editar meu perfil" : "Editar"}
                             </DropdownMenuItem>
+                            {isManager && (
                             <DropdownMenuItem onClick={() => handleToggleMember(member)}>
                               {member.ativo ? (
                                 <>
@@ -505,7 +512,8 @@ export default function TeamPage() {
                                 </>
                               )}
                             </DropdownMenuItem>
-                            {!member.clerkId && member.clerkInvitationId && (
+                            )}
+                            {isManager && !member.clerkId && member.clerkInvitationId && (
                               <DropdownMenuItem onClick={() => handleResendInvite(member)}>
                                 <Mail className="h-4 w-4 mr-2" />
                                 Reenviar convite
@@ -641,6 +649,17 @@ export default function TeamPage() {
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            {editingMember && (
+              <div className="flex justify-center">
+                <AvatarUpload
+                  avatar={memberForm.avatar}
+                  initials={getInitials(memberForm.nome || "U")}
+                  onUpload={async (base64) => {
+                    setMemberForm((prev) => ({ ...prev, avatar: base64 }));
+                  }}
+                />
+              </div>
+            )}
             <div className="grid gap-2">
               <Label htmlFor="member-nome">Nome *</Label>
               <Input
@@ -669,6 +688,7 @@ export default function TeamPage() {
                 placeholder="(00) 00000-0000"
               />
             </div>
+            {isManager && (
             <div className="grid gap-2">
               <Label htmlFor="member-cargo">Cargo</Label>
               <Select
@@ -688,6 +708,7 @@ export default function TeamPage() {
                 </SelectContent>
               </Select>
             </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsMemberDialogOpen(false)}>

@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CpfCnpjInput } from "@/components/shared/cpf-cnpj-input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Users, Plus, Search, MoreHorizontal, Pencil, Trash2, Loader2 } from "lucide-react";
 import {
   DropdownMenu,
@@ -42,6 +44,11 @@ interface Client {
   telefone: string | null;
   email: string | null;
   endereco: string | null;
+  cep: string | null;
+  numero: string | null;
+  complemento: string | null;
+  cidade: string | null;
+  uf: string | null;
   observacoes: string | null;
   _count?: { processos: number };
 }
@@ -49,18 +56,30 @@ interface Client {
 interface ClientFormData {
   nome: string;
   cpfCnpj: string;
+  cpfCnpjTipo: "CPF" | "CNPJ";
   telefone: string;
   email: string;
   endereco: string;
+  cep: string;
+  numero: string;
+  complemento: string;
+  cidade: string;
+  uf: string;
   observacoes: string;
 }
 
 const initialForm: ClientFormData = {
   nome: "",
   cpfCnpj: "",
+  cpfCnpjTipo: "CPF",
   telefone: "",
   email: "",
   endereco: "",
+  cep: "",
+  numero: "",
+  complemento: "",
+  cidade: "",
+  uf: "",
   observacoes: "",
 };
 
@@ -73,6 +92,7 @@ export default function ClientsPage() {
   const [formData, setFormData] = useState<ClientFormData>(initialForm);
   const [submitting, setSubmitting] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [cepLoading, setCepLoading] = useState(false);
 
   const fetchClients = useCallback(async () => {
     setLoading(true);
@@ -108,15 +128,45 @@ export default function ClientsPage() {
 
   const handleEdit = (client: Client) => {
     setEditingClient(client);
+    const isCnpj = (client.cpfCnpj ?? "").replace(/\D/g, "").length > 11;
     setFormData({
       nome: client.nome,
       cpfCnpj: client.cpfCnpj ?? "",
+      cpfCnpjTipo: isCnpj ? "CNPJ" : "CPF",
       telefone: client.telefone ?? "",
       email: client.email ?? "",
       endereco: client.endereco ?? "",
+      cep: client.cep ?? "",
+      numero: client.numero ?? "",
+      complemento: client.complemento ?? "",
+      cidade: client.cidade ?? "",
+      uf: client.uf ?? "",
       observacoes: client.observacoes ?? "",
     });
     setIsDialogOpen(true);
+  };
+
+  const handleCepBlur = async () => {
+    const cepDigits = formData.cep.replace(/\D/g, "");
+    if (cepDigits.length !== 8) return;
+
+    setCepLoading(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cepDigits}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        setFormData((prev) => ({
+          ...prev,
+          endereco: data.logradouro || prev.endereco,
+          cidade: data.localidade || prev.cidade,
+          uf: data.uf || prev.uf,
+        }));
+      }
+    } catch {
+      // silent
+    } finally {
+      setCepLoading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -129,6 +179,11 @@ export default function ClientsPage() {
         telefone: formData.telefone || null,
         email: formData.email || null,
         endereco: formData.endereco || null,
+        cep: formData.cep || null,
+        numero: formData.numero || null,
+        complemento: formData.complemento || null,
+        cidade: formData.cidade || null,
+        uf: formData.uf || null,
         observacoes: formData.observacoes || null,
       };
 
@@ -263,13 +318,13 @@ export default function ClientsPage() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>
               {editingClient ? "Editar Cliente" : "Novo Cliente"}
             </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-2">
             <div className="grid gap-2">
               <Label htmlFor="client-nome">Nome *</Label>
               <Input
@@ -279,15 +334,31 @@ export default function ClientsPage() {
                 placeholder="Nome completo"
               />
             </div>
+
             <div className="grid gap-2">
-              <Label htmlFor="client-cpf">CPF/CNPJ</Label>
-              <Input
-                id="client-cpf"
-                value={formData.cpfCnpj}
-                onChange={(e) => setFormData({ ...formData, cpfCnpj: e.target.value })}
-                placeholder="000.000.000-00 ou 00.000.000/0000-00"
-              />
+              <Label>CPF/CNPJ</Label>
+              <div className="flex gap-2">
+                <Select
+                  value={formData.cpfCnpjTipo}
+                  onValueChange={(val) => setFormData({ ...formData, cpfCnpjTipo: val as "CPF" | "CNPJ", cpfCnpj: "" })}
+                >
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CPF">CPF</SelectItem>
+                    <SelectItem value="CNPJ">CNPJ</SelectItem>
+                  </SelectContent>
+                </Select>
+                <CpfCnpjInput
+                  tipo={formData.cpfCnpjTipo}
+                  value={formData.cpfCnpj}
+                  onChange={(val) => setFormData({ ...formData, cpfCnpj: val })}
+                  placeholder={formData.cpfCnpjTipo === "CPF" ? "000.000.000-00" : "00.000.000/0000-00"}
+                />
+              </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="client-telefone">Telefone</Label>
@@ -309,15 +380,77 @@ export default function ClientsPage() {
                 />
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="client-endereco">Endereço</Label>
-              <Input
-                id="client-endereco"
-                value={formData.endereco}
-                onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
-                placeholder="Endereço completo"
-              />
+
+            <div className="border-t pt-4">
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">Endereço</h4>
+              <div className="grid gap-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="client-cep">CEP</Label>
+                  <Input
+                    id="client-cep"
+                    value={formData.cep}
+                    onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
+                    onBlur={handleCepBlur}
+                    placeholder="00000-000"
+                    maxLength={9}
+                  />
+                  {cepLoading && (
+                    <p className="text-xs text-muted-foreground">Buscando endereço...</p>
+                  )}
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="client-endereco">Endereço</Label>
+                  <Input
+                    id="client-endereco"
+                    value={formData.endereco}
+                    onChange={(e) => setFormData({ ...formData, endereco: e.target.value })}
+                    placeholder="Rua, Avenida, etc."
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="grid gap-2">
+                    <Label htmlFor="client-numero">Número</Label>
+                    <Input
+                      id="client-numero"
+                      value={formData.numero}
+                      onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
+                      placeholder="Nº"
+                    />
+                  </div>
+                  <div className="grid gap-2 col-span-2">
+                    <Label htmlFor="client-complemento">Complemento</Label>
+                    <Input
+                      id="client-complemento"
+                      value={formData.complemento}
+                      onChange={(e) => setFormData({ ...formData, complemento: e.target.value })}
+                      placeholder="Apto, Sala, etc."
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-6 gap-3">
+                  <div className="col-span-4 grid gap-2">
+                    <Label htmlFor="client-cidade">Cidade</Label>
+                    <Input
+                      id="client-cidade"
+                      value={formData.cidade}
+                      onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
+                      placeholder="Cidade"
+                    />
+                  </div>
+                  <div className="col-span-2 grid gap-2">
+                    <Label htmlFor="client-uf">UF</Label>
+                    <Input
+                      id="client-uf"
+                      value={formData.uf}
+                      onChange={(e) => setFormData({ ...formData, uf: e.target.value.toUpperCase().slice(0, 2) })}
+                      placeholder="UF"
+                      maxLength={2}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
+
             <div className="grid gap-2">
               <Label htmlFor="client-observacoes">Observações</Label>
               <Textarea

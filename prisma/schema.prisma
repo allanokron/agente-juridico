@@ -119,6 +119,9 @@ model Empresa {
   endereco              String?
   cidade                String?
   uf                    String?
+  cep                   String?
+  numero                String?
+  complemento           String?
   logo                  String?
   plano                 String                @default("free")
   ativo                 Boolean               @default(true)
@@ -342,6 +345,11 @@ model Cliente {
   telefone    String?
   email       String?
   endereco    String?
+  cep         String?
+  numero      String?
+  complemento String?
+  cidade      String?
+  uf          String?
   observacoes String?
   ativo       Boolean  @default(true)
   metadata    Json?

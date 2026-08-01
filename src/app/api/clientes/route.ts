@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     const user = await getSessionUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     const body = await request.json();
-    const { nome, cpfCnpj, telefone, email, endereco, observacoes } =
+    const { nome, cpfCnpj, telefone, email, endereco, cep, numero, complemento, cidade, uf, observacoes } =
       body;
     const empresaId = user.empresaId;
 
@@ -87,6 +87,11 @@ export async function POST(request: NextRequest) {
         telefone,
         email,
         endereco,
+        cep: cep || null,
+        numero: numero || null,
+        complemento: complemento || null,
+        cidade: cidade || null,
+        uf: uf || null,
         observacoes,
       },
       include: {

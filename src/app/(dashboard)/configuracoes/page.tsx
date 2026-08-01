@@ -13,6 +13,7 @@ import { AvatarUpload } from "@/components/shared/avatar-upload";
 import { Building2, User, Bell, Shield, Loader2, Tag, Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { toast } from "sonner";
+import { CpfCnpjInput } from "@/components/shared/cpf-cnpj-input";
 
 interface EmpresaData {
   nome: string;
@@ -20,6 +21,11 @@ interface EmpresaData {
   email: string;
   telefone: string;
   endereco: string;
+  cidade: string;
+  uf: string;
+  cep: string;
+  numero: string;
+  complemento: string;
   logo: string | null;
 }
 
@@ -37,6 +43,11 @@ const initialEmpresa: EmpresaData = {
   email: "",
   telefone: "",
   endereco: "",
+  cidade: "",
+  uf: "",
+  cep: "",
+  numero: "",
+  complemento: "",
   logo: null,
 };
 
@@ -142,6 +153,11 @@ export default function SettingsPage() {
           email: data.email ?? "",
           telefone: data.telefone ?? "",
           endereco: data.endereco ?? "",
+          cidade: data.cidade ?? "",
+          uf: data.uf ?? "",
+          cep: data.cep ?? "",
+          numero: data.numero ?? "",
+          complemento: data.complemento ?? "",
           logo: data.logo ?? null,
         });
       }
@@ -302,11 +318,10 @@ export default function SettingsPage() {
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="empresa-cnpj">CNPJ</Label>
-                      <Input
-                        id="empresa-cnpj"
+                      <CpfCnpjInput
+                        tipo="CNPJ"
                         value={empresa.cnpj}
-                        onChange={(e) => setEmpresa({ ...empresa, cnpj: e.target.value })}
-                        placeholder="00.000.000/0000-00"
+                        onChange={(v) => setEmpresa({ ...empresa, cnpj: v })}
                       />
                     </div>
                   </div>
@@ -331,13 +346,81 @@ export default function SettingsPage() {
                       />
                     </div>
                   </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="empresa-endereco">Endereço</Label>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="empresa-cep">CEP</Label>
+                      <Input
+                        id="empresa-cep"
+                        value={empresa.cep}
+                        onChange={(e) => setEmpresa({ ...empresa, cep: e.target.value })}
+                        onBlur={async (e) => {
+                          const cep = e.target.value.replace(/\D/g, "").trim();
+                          if (cep.length !== 8) return;
+                          try {
+                            const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                            const data = await res.json();
+                            if (!data.erro) {
+                              setEmpresa((prev) => ({
+                                ...prev,
+                                endereco: data.logradouro ?? prev.endereco,
+                                cidade: data.localidade ?? prev.cidade,
+                                uf: data.uf ?? prev.uf,
+                              }));
+                            }
+                          } catch {
+                            // silent
+                          }
+                        }}
+                        placeholder="00000-000"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="empresa-endereco">Endereço</Label>
+                      <Input
+                        id="empresa-endereco"
+                        value={empresa.endereco}
+                        onChange={(e) => setEmpresa({ ...empresa, endereco: e.target.value })}
+                        placeholder="Rua, Avenida..."
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-2">
+                      <Label htmlFor="empresa-numero">Número</Label>
+                      <Input
+                        id="empresa-numero"
+                        value={empresa.numero}
+                        onChange={(e) => setEmpresa({ ...empresa, numero: e.target.value })}
+                        placeholder="Nº"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="empresa-complemento">Complemento</Label>
+                      <Input
+                        id="empresa-complemento"
+                        value={empresa.complemento}
+                        onChange={(e) => setEmpresa({ ...empresa, complemento: e.target.value })}
+                        placeholder="Sala, Andar..."
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="empresa-cidade">Cidade</Label>
+                      <Input
+                        id="empresa-cidade"
+                        value={empresa.cidade}
+                        onChange={(e) => setEmpresa({ ...empresa, cidade: e.target.value })}
+                        placeholder="Cidade"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-2 w-24">
+                    <Label htmlFor="empresa-uf">UF</Label>
                     <Input
-                      id="empresa-endereco"
-                      value={empresa.endereco}
-                      onChange={(e) => setEmpresa({ ...empresa, endereco: e.target.value })}
-                      placeholder="Endereço completo"
+                      id="empresa-uf"
+                      value={empresa.uf}
+                      onChange={(e) => setEmpresa({ ...empresa, uf: e.target.value.toUpperCase().slice(0, 2) })}
+                      placeholder="UF"
+                      maxLength={2}
                     />
                   </div>
                   <Separator />

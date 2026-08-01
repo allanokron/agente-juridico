@@ -35,6 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CpfCnpjInput } from "@/components/shared/cpf-cnpj-input";
 
 type Empresa = {
   id: string;
@@ -431,7 +432,7 @@ export default function AdminEmpresasPage() {
           <form onSubmit={submitCreate} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField label="Escritório" value={createForm.nome} required onChange={(v) => setCreateForm({ ...createForm, nome: v })} />
-              <FormField label="CNPJ" value={createForm.cnpj} onChange={(v) => setCreateForm({ ...createForm, cnpj: v })} />
+              <CpfCnpjInput tipo="CNPJ" value={createForm.cnpj} onChange={(v) => setCreateForm({ ...createForm, cnpj: v })} label="CNPJ" />
               <FormField label="E-mail do escritório" type="email" value={createForm.email} required onChange={(v) => setCreateForm({ ...createForm, email: v })} />
               <FormField label="Telefone" value={createForm.telefone} onChange={(v) => setCreateForm({ ...createForm, telefone: v })} />
               <FormField label="Endereço" value={createForm.endereco} onChange={(v) => setCreateForm({ ...createForm, endereco: v })} />
@@ -485,7 +486,7 @@ export default function AdminEmpresasPage() {
           <form onSubmit={submitEdit} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField label="Nome" value={editForm.nome} required onChange={(v) => setEditForm({ ...editForm, nome: v })} />
-              <FormField label="CNPJ" value={editForm.cnpj} onChange={(v) => setEditForm({ ...editForm, cnpj: v })} />
+              <CpfCnpjInput tipo="CNPJ" value={editForm.cnpj} onChange={(v) => setEditForm({ ...editForm, cnpj: v })} label="CNPJ" />
               <FormField label="E-mail" type="email" value={editForm.email} required onChange={(v) => setEditForm({ ...editForm, email: v })} />
               <FormField label="Telefone" value={editForm.telefone} onChange={(v) => setEditForm({ ...editForm, telefone: v })} />
               <FormField label="Endereço" value={editForm.endereco} onChange={(v) => setEditForm({ ...editForm, endereco: v })} />

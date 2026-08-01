@@ -23,6 +23,7 @@ import {
   Loader2,
   Save,
 } from "lucide-react";
+import { CpfCnpjInput } from "@/components/shared/cpf-cnpj-input";
 
 interface Cliente {
   id: string;
@@ -71,7 +72,7 @@ export default function NovoReciboPage() {
   const [pagadorCpfCnpj, setPagadorCpfCnpj] = useState("");
   const [pagadorTipoDoc, setPagadorTipoDoc] = useState<"CPF" | "CNPJ">("CPF");
 
-  const [servicoPrestado, setServicoPrestado] = useState("");
+  const [observacaoServico, setObservacaoServico] = useState("");
   const [servicoTipoId, setServicoTipoId] = useState("");
   const [cidadePrestacao, setCidadePrestacao] = useState("");
   const [dataPagamento, setDataPagamento] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -152,8 +153,6 @@ export default function NovoReciboPage() {
   const handleServicoSelect = (id: string | null) => {
     const val = id ?? "";
     setServicoTipoId(val);
-    const servico = servicosTipo.find((s) => s.id === val);
-    if (servico) setServicoPrestado(servico.nome);
   };
 
   const parseValor = (v: string): number => {
@@ -175,8 +174,8 @@ export default function NovoReciboPage() {
       toast.error("Informe o CPF/CNPJ do pagador");
       return;
     }
-    if (!servicoPrestado.trim()) {
-      toast.error("Informe o serviço prestado");
+    if (!servicoTipoId) {
+      toast.error("Selecione o tipo de serviço");
       return;
     }
     if (!cidadePrestacao.trim()) {
@@ -207,7 +206,7 @@ export default function NovoReciboPage() {
           pagadorNome: pagadorNome.trim(),
           pagadorCpfCnpj: pagadorCpfCnpj.trim(),
           pagadorTipoDoc,
-          servicoPrestado: servicoPrestado.trim(),
+          servicoPrestado: observacaoServico.trim() || null,
           servicoTipoId: servicoTipoId || null,
           cidadePrestacao: cidadePrestacao.trim(),
           prestadorNome: prestadorNome.trim(),
@@ -327,40 +326,41 @@ export default function NovoReciboPage() {
                       <SelectItem value="CNPJ">CNPJ</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Input
+                  <CpfCnpjInput
+                    tipo={pagadorTipoDoc}
                     value={pagadorCpfCnpj}
-                    onChange={(e) => setPagadorCpfCnpj(e.target.value)}
-                    placeholder={pagadorTipoDoc === "CPF" ? "000.000.000-00" : "00.000.000/0000-00"}
+                    onChange={setPagadorCpfCnpj}
                     disabled={pagadorModo === "cadastrado" && !!clienteId}
                   />
                 </div>
               </div>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="grid gap-2">
-                <Label>Serviço Prestado *</Label>
-                <Input
-                  value={servicoPrestado}
-                  onChange={(e) => setServicoPrestado(e.target.value)}
-                  placeholder="Descrição do serviço"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label>Tipo de Serviço</Label>
-                <Select value={servicoTipoId} onValueChange={handleServicoSelect}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione (opcional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {servicosTipo.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="grid gap-2">
+              <Label>Tipo de Serviço *</Label>
+              <Select value={servicoTipoId} onValueChange={handleServicoSelect}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione o tipo de serviço" />
+                </SelectTrigger>
+                <SelectContent>
+                  {servicosTipo.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Observação</Label>
+              <textarea
+                value={observacaoServico}
+                onChange={(e) => setObservacaoServico(e.target.value)}
+                placeholder="Observações adicionais sobre o serviço (opcional)"
+                rows={3}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -423,10 +423,10 @@ export default function NovoReciboPage() {
                       <SelectItem value="CNPJ">CNPJ</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Input
+                  <CpfCnpjInput
+                    tipo={prestadorTipoDoc}
                     value={prestadorCpfCnpj}
-                    onChange={(e) => setPrestadorCpfCnpj(e.target.value)}
-                    placeholder={prestadorTipoDoc === "CPF" ? "000.000.000-00" : "00.000.000/0000-00"}
+                    onChange={setPrestadorCpfCnpj}
                   />
                 </div>
               </div>

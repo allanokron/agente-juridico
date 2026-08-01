@@ -282,42 +282,42 @@ export default function ReciboDetailPage({ params }: { params: Promise<{ id: str
           </Button>
         </div>
 
-        <div className="recibo-print bg-white border rounded-xl p-8 max-w-[800px] mx-auto shadow-sm print:shadow-none print:border-0 print:p-0 print:max-w-none">
-          <div className="text-center border-b pb-6 mb-6">
+        <div className="recibo-print bg-white border rounded-xl p-5 max-w-[800px] mx-auto shadow-sm print:shadow-none print:border-0 print:p-0 print:max-w-none">
+          <div className="text-center border-b pb-4 mb-4">
             {empresa?.logo && (
               <img
                 src={empresa.logo}
                 alt="Logo"
-                className="h-16 mx-auto mb-4 object-contain"
+                className="h-14 mx-auto mb-3 object-contain"
               />
             )}
-            <h2 className="text-3xl font-bold tracking-tight">RECIBO DE PAGAMENTO</h2>
-            <p className="text-lg text-muted-foreground mt-2">
+            <h2 className="text-2xl font-bold tracking-tight">RECIBO DE PAGAMENTO</h2>
+            <p className="text-base text-muted-foreground mt-1">
               N° {String(recibo.numero).padStart(4, "0")}
             </p>
           </div>
 
-          <div className="space-y-6 text-sm leading-relaxed">
+          <div className="space-y-4 text-sm leading-relaxed">
             <p>
               Recebi de <strong className="text-base">{recibo.pagadorNome}</strong>,
               inscrito(a) no {recibo.pagadorTipoDoc} sob o nº{" "}
               <strong>{recibo.pagadorCpfCnpj}</strong>, o valor de{" "}
               <strong className="text-base">{currencyFmt.format(recibo.valor)}</strong>{" "}
               ({valorPorExtenso(recibo.valor)}), referente a{" "}
-              <strong>{recibo.servicoPrestado}</strong>
-              {recibo.servicoTipo ? ` (${recibo.servicoTipo.nome})` : ""},{" "}
+              <strong>{recibo.servicoTipo?.nome ?? recibo.servicoPrestado}</strong>
+              {recibo.servicoPrestado && recibo.servicoTipo ? `, ${recibo.servicoPrestado}` : ""},{" "}
               prestado(a) na cidade de <strong>{recibo.cidadePrestacao}</strong>, na data
               de <strong>{format(new Date(recibo.dataPagamento), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</strong>.
             </p>
 
-            <div className="border-t pt-4">
-              <h3 className="font-semibold mb-2">Dados do Prestador</h3>
+            <div className="border-t pt-3">
+              <h3 className="font-semibold mb-1 text-sm">Dados do Prestador</h3>
               <p>
                 <strong>{recibo.prestadorNome}</strong>,{" "}
                 {recibo.prestadorTipoDoc} nº <strong>{recibo.prestadorCpfCnpj}</strong>
               </p>
               {recibo.prestadorEndereco && (
-                <p>
+                <p className="text-xs text-muted-foreground">
                   {recibo.prestadorEndereco}
                   {recibo.prestadorCidade && `, ${recibo.prestadorCidade}`}
                   {recibo.prestadorUf && ` - ${recibo.prestadorUf}`}
@@ -326,20 +326,20 @@ export default function ReciboDetailPage({ params }: { params: Promise<{ id: str
               )}
             </div>
 
-            <div className="border-t pt-4">
-              <h3 className="font-semibold mb-2">Forma de Pagamento</h3>
+            <div className="border-t pt-3">
+              <h3 className="font-semibold mb-1 text-sm">Forma de Pagamento</h3>
               <p className="font-medium">
                 {formatarFormaPagamento(recibo.formaPagamento)}
               </p>
               {recibo.pagamentoDetalhes && (
-                <p className="text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {formatarDetalhesPagamento(recibo.formaPagamento, recibo.pagamentoDetalhes as Record<string, string>)}
                 </p>
               )}
             </div>
 
-            <div className="border-t pt-4">
-              <p className="text-muted-foreground">
+            <div className="border-t pt-3">
+              <p className="text-xs text-muted-foreground">
                 {localEmissao
                   ? `${localEmissao}, `
                   : ""}
@@ -348,7 +348,7 @@ export default function ReciboDetailPage({ params }: { params: Promise<{ id: str
             </div>
           </div>
 
-          <div className="mt-16 border-t pt-8">
+          <div className="mt-12 border-t pt-6">
             <div className="flex flex-col items-center">
               <div className="w-64 border-b border-dashed border-foreground/40 mb-2" />
               <p className="text-sm font-medium">{recibo.pagadorNome}</p>
@@ -359,12 +359,20 @@ export default function ReciboDetailPage({ params }: { params: Promise<{ id: str
           </div>
 
           {empresa && (
-            <div className="mt-12 pt-6 border-t text-center text-xs text-muted-foreground space-y-1">
-              <p className="font-semibold text-sm">{empresa.nome}</p>
-              {empresa.cnpj && <p>CNPJ: {empresa.cnpj}</p>}
-              {empresa.endereco && <p>{empresa.endereco}{empresa.cidade ? `, ${empresa.cidade}` : ""}{empresa.uf ? ` - ${empresa.uf}` : ""}</p>}
-              {empresa.telefone && <p>Tel: {empresa.telefone}</p>}
-              {empresa.email && <p>{empresa.email}</p>}
+            <div className="mt-8 pt-4 border-t text-center text-xs text-muted-foreground">
+              <div className="flex flex-col items-center gap-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm">{empresa.nome}</span>
+                  {empresa.cnpj && <span>| CNPJ: {empresa.cnpj}</span>}
+                </div>
+                <div className="flex items-center gap-2">
+                  {empresa.endereco && <span>{empresa.endereco}</span>}
+                  {empresa.cidade && <span>, {empresa.cidade}</span>}
+                  {empresa.uf && <span> - {empresa.uf}</span>}
+                  {empresa.telefone && <span>| Tel: {empresa.telefone}</span>}
+                  {empresa.email && <span>| {empresa.email}</span>}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -400,14 +408,14 @@ export default function ReciboDetailPage({ params }: { params: Promise<{ id: str
             width: 100%;
             border: none !important;
             box-shadow: none !important;
-            padding: 20mm !important;
+            padding: 12mm !important;
             margin: 0 !important;
           }
           .no-print {
             display: none !important;
           }
           @page {
-            margin: 15mm;
+            margin: 12mm;
             size: A4;
           }
         }

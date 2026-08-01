@@ -59,7 +59,7 @@ export async function PUT(
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     const { id } = await params;
     const body = await request.json();
-    const { nome, cpfCnpj, telefone, email, endereco, observacoes } = body;
+    const { nome, cpfCnpj, telefone, email, endereco, cep, numero, complemento, cidade, uf, observacoes } = body;
 
     const existing = await prisma.cliente.findFirst({ where: { id, empresaId: user.empresaId } });
 
@@ -78,6 +78,11 @@ export async function PUT(
         ...(telefone !== undefined && { telefone }),
         ...(email !== undefined && { email }),
         ...(endereco !== undefined && { endereco }),
+        ...(cep !== undefined && { cep: cep || null }),
+        ...(numero !== undefined && { numero: numero || null }),
+        ...(complemento !== undefined && { complemento: complemento || null }),
+        ...(cidade !== undefined && { cidade: cidade || null }),
+        ...(uf !== undefined && { uf: uf || null }),
         ...(observacoes !== undefined && { observacoes }),
       },
       include: {

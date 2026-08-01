@@ -80,9 +80,7 @@ export async function GET() {
       } else if (data < startOfToday) {
         atrasados.push(card);
       }
-      if (data >= startOfToday && data < endOfNext30Days) {
-        agenda.push(card);
-      }
+      agenda.push(card);
     }
 
     return NextResponse.json({

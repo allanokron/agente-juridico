@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, UserPlus, Search, Upload, FileText, X } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { FileUpload } from "@/components/documents/file-upload";
+import { CpfCnpjInput } from "@/components/shared/cpf-cnpj-input";
 
 function formatCpf(value: string): string {
   const digits = value.replace(/\D/g, "").slice(0, 11);
@@ -513,44 +514,14 @@ export function CreateProcessDialog({
                     placeholder="Nome completo"
                   />
                 </div>
-                {tipoPessoa === "PF" ? (
-                  <div className="grid gap-2">
-                    <Label htmlFor="cpfCnpj">CPF *</Label>
-                    <Input
-                      id="cpfCnpj"
-                      value={newCliente.cpfCnpj}
-                      onInput={(e) => {
-                        const target = e.target as HTMLInputElement;
-                        target.value = formatCpf(target.value);
-                        handleCpfCnpjChange(target.value);
-                      }}
-                      onBlur={(e) => checkCpfCnpj(e.target.value)}
-                      placeholder="000.000.000-00"
-                      maxLength={14}
-                    />
-                    {cpfCnpjWarning && (
-                      <p className="text-sm text-amber-600">{cpfCnpjWarning}</p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="grid gap-2">
-                    <Label htmlFor="cpfCnpj">CNPJ *</Label>
-                    <Input
-                      id="cpfCnpj"
-                      value={newCliente.cpfCnpj}
-                      onInput={(e) => {
-                        const target = e.target as HTMLInputElement;
-                        target.value = formatCnpj(target.value);
-                        handleCpfCnpjChange(target.value);
-                      }}
-                      onBlur={(e) => checkCpfCnpj(e.target.value)}
-                      placeholder="00.000.000/0000-00"
-                      maxLength={18}
-                    />
-                    {cpfCnpjWarning && (
-                      <p className="text-sm text-amber-600">{cpfCnpjWarning}</p>
-                    )}
-                  </div>
+                <CpfCnpjInput
+                  tipo={tipoPessoa === "PF" ? "CPF" : "CNPJ"}
+                  value={newCliente.cpfCnpj}
+                  onChange={handleCpfCnpjChange}
+                  label={tipoPessoa === "PF" ? "CPF *" : "CNPJ *"}
+                />
+                {cpfCnpjWarning && (
+                  <p className="text-sm text-amber-600">{cpfCnpjWarning}</p>
                 )}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-2">
