@@ -38,6 +38,7 @@ import {
   isBefore,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useAuth } from "@/contexts/auth-context";
 
 interface KanbanActivity {
   id: string;
@@ -95,12 +96,14 @@ function sortActivitiesByTime(activities: KanbanActivity[]): KanbanActivity[] {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [view, setView] = useState<"semana" | "mes">("mes");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [empresaLogo, setEmpresaLogo] = useState<string | null>(null);
 
   const [editingCard, setEditingCard] = useState<KanbanActivity | null>(null);
   const [editDate, setEditDate] = useState("");
@@ -123,6 +126,14 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (!user?.empresaId) return;
+    fetch(`/api/empresas/${user.empresaId}`)
+      .then((res) => res.json())
+      .then((data) => setEmpresaLogo(data.logo ?? null))
+      .catch(() => {});
+  }, [user?.empresaId]);
 
   const openEditDialog = (activity: KanbanActivity) => {
     setEditingCard(activity);
@@ -207,13 +218,23 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">
-            Dashboard
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Visao geral dos seus processos e atividades
-          </p>
+        <div className="flex items-center gap-4">
+          {empresaLogo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={empresaLogo}
+              alt="Logo do escritório"
+              className="h-10 w-auto object-contain"
+            />
+          )}
+          <div>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">
+              Dashboard
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Visao geral dos seus processos e atividades
+            </p>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

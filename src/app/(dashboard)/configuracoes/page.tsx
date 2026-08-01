@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AvatarUpload } from "@/components/shared/avatar-upload";
 import { Building2, User, Bell, Shield, Loader2, Tag, Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { toast } from "sonner";
 
 interface EmpresaData {
   nome: string;
@@ -19,6 +20,7 @@ interface EmpresaData {
   email: string;
   telefone: string;
   endereco: string;
+  logo: string | null;
 }
 
 interface PerfilData {
@@ -35,6 +37,7 @@ const initialEmpresa: EmpresaData = {
   email: "",
   telefone: "",
   endereco: "",
+  logo: null,
 };
 
 const initialPerfil: PerfilData = {
@@ -55,7 +58,7 @@ function getInitials(name: string) {
 }
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const isManager = user?.role === "SUPER_ADMIN" || user?.role === "ADMINISTRADOR";
 
   const [empresa, setEmpresa] = useState<EmpresaData>(initialEmpresa);
@@ -139,6 +142,7 @@ export default function SettingsPage() {
           email: data.email ?? "",
           telefone: data.telefone ?? "",
           endereco: data.endereco ?? "",
+          logo: data.logo ?? null,
         });
       }
     } catch {
@@ -182,9 +186,12 @@ export default function SettingsPage() {
       });
       if (res.ok) {
         fetchEmpresa();
+        toast.success("Dados da empresa atualizados");
+      } else {
+        toast.error("Erro ao salvar dados da empresa");
       }
     } catch {
-      // silent
+      toast.error("Erro ao salvar dados da empresa");
     } finally {
       setEmpresaSaving(false);
     }
@@ -206,9 +213,13 @@ export default function SettingsPage() {
       });
       if (res.ok) {
         fetchPerfil();
+        setUser({ ...user, nome: perfil.nome, avatar: perfil.avatar ?? user.avatar });
+        toast.success("Perfil atualizado com sucesso");
+      } else {
+        toast.error("Erro ao salvar perfil");
       }
     } catch {
-      // silent
+      toast.error("Erro ao salvar perfil");
     } finally {
       setPerfilSaving(false);
     }
@@ -218,13 +229,17 @@ export default function SettingsPage() {
     if (!user?.id) return;
     setPerfil((prev) => ({ ...prev, avatar: base64 }));
     try {
-      await fetch(`/api/usuarios/${user.id}`, {
+      const res = await fetch(`/api/usuarios/${user.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ avatar: base64 }),
       });
+      if (res.ok) {
+        setUser({ ...user, avatar: base64 });
+        toast.success("Foto de perfil atualizada");
+      }
     } catch {
-      // silent
+      toast.error("Erro ao salvar foto de perfil");
     }
   };
 
@@ -324,6 +339,57 @@ export default function SettingsPage() {
                       onChange={(e) => setEmpresa({ ...empresa, endereco: e.target.value })}
                       placeholder="Endereço completo"
                     />
+                  </div>
+                  <Separator />
+                  <div className="grid gap-2">
+                    <Label>Logo do Escritório</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Formatos aceitos: PNG, JPG. Tamanho recomendado: 400x100px.
+                    </p>
+                    <div className="flex items-center gap-4">
+                      {empresa.logo && (
+                        <div className="relative h-20 w-48 rounded-lg border border-border overflow-hidden bg-muted flex items-center justify-center">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={empresa.logo}
+                            alt="Logo do escritório"
+                            className="h-full w-full object-contain"
+                          />
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-2">
+                        <label className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted cursor-pointer transition-colors">
+                          <Building2 className="h-4 w-4" />
+                          {empresa.logo ? "Alterar logo" : "Selecionar logo"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="sr-only"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const base64 = ev.target?.result as string;
+                                setEmpresa((prev) => ({ ...prev, logo: base64 }));
+                              };
+                              reader.readAsDataURL(file);
+                              e.target.value = "";
+                            }}
+                          />
+                        </label>
+                        {empresa.logo && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => setEmpresa((prev) => ({ ...prev, logo: null }))}
+                          >
+                            Remover logo
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                   <Separator />
                   <div className="flex justify-end">

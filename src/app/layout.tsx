@@ -4,6 +4,7 @@ import "./globals.css";
 import { AppProviders } from "@/components/providers";
 import { ClerkProvider } from "@clerk/nextjs";
 import { lexoPtBR } from "@/lib/clerk-localization";
+import { Toaster } from "sonner";
 
 const manrope = Manrope({
   variable: "--font-sans",
@@ -41,6 +42,7 @@ export default function RootLayout({
           taskUrls={{ "setup-mfa": "/tarefas/configurar-mfa" }}
         >
           <AppProviders>{children}</AppProviders>
+          <Toaster richColors position="top-right" />
         </ClerkProvider>
       </body>
     </html>
