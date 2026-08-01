@@ -11,9 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AvatarUpload } from "@/components/shared/avatar-upload";
 import { Building2, User, Bell, Shield, Loader2, Tag, Plus, Trash2 } from "lucide-react";
-
-const EMPRESA_ID = "empresa-1";
-const USUARIO_ID = "user-1";
+import { useAuth } from "@/contexts/auth-context";
 
 interface EmpresaData {
   nome: string;
@@ -57,6 +55,9 @@ function getInitials(name: string) {
 }
 
 export default function SettingsPage() {
+  const { user } = useAuth();
+  const isManager = user?.role === "SUPER_ADMIN" || user?.role === "ADMINISTRADOR";
+
   const [empresa, setEmpresa] = useState<EmpresaData>(initialEmpresa);
   const [perfil, setPerfil] = useState<PerfilData>(initialPerfil);
   const [empresaSaving, setEmpresaSaving] = useState(false);
@@ -70,9 +71,12 @@ export default function SettingsPage() {
   const [novoTipoValor, setNovoTipoValor] = useState("");
   const [tipoSaving, setTipoSaving] = useState(false);
 
+  const defaultTab = isManager ? "empresa" : "perfil";
+
   const fetchTipos = useCallback(async () => {
+    if (!user?.empresaId) return;
     try {
-      const res = await fetch(`/api/tipos-processo?empresaId=${EMPRESA_ID}`);
+      const res = await fetch(`/api/tipos-processo?empresaId=${user.empresaId}`);
       if (res.ok) {
         const data = await res.json();
         setTiposProcesso(data);
@@ -80,10 +84,10 @@ export default function SettingsPage() {
     } catch {
       // silent
     }
-  }, []);
+  }, [user?.empresaId]);
 
   const handleAddTipo = async () => {
-    if (!novoTipoValor.trim()) return;
+    if (!novoTipoValor.trim() || !user?.empresaId) return;
     setTipoSaving(true);
     try {
       const valor = novoTipoValor.trim().toUpperCase().replace(/\s+/g, "_");
@@ -95,7 +99,7 @@ export default function SettingsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          empresaId: EMPRESA_ID,
+          empresaId: user.empresaId,
           valor,
           label,
         }),
@@ -124,8 +128,9 @@ export default function SettingsPage() {
   };
 
   const fetchEmpresa = useCallback(async () => {
+    if (!user?.empresaId) return;
     try {
-      const res = await fetch(`/api/empresas/${EMPRESA_ID}`);
+      const res = await fetch(`/api/empresas/${user.empresaId}`);
       if (res.ok) {
         const data = await res.json();
         setEmpresa({
@@ -139,11 +144,12 @@ export default function SettingsPage() {
     } catch {
       // silent
     }
-  }, []);
+  }, [user?.empresaId]);
 
   const fetchPerfil = useCallback(async () => {
+    if (!user?.id) return;
     try {
-      const res = await fetch(`/api/usuarios/${USUARIO_ID}`);
+      const res = await fetch(`/api/usuarios/${user.id}`);
       if (res.ok) {
         const data = await res.json();
         setPerfil({
@@ -157,7 +163,7 @@ export default function SettingsPage() {
     } catch {
       // silent
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchEmpresa();
@@ -166,9 +172,10 @@ export default function SettingsPage() {
   }, [fetchEmpresa, fetchPerfil, fetchTipos]);
 
   const handleSaveEmpresa = async () => {
+    if (!user?.empresaId) return;
     setEmpresaSaving(true);
     try {
-      const res = await fetch(`/api/empresas/${EMPRESA_ID}`, {
+      const res = await fetch(`/api/empresas/${user.empresaId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(empresa),
@@ -184,9 +191,10 @@ export default function SettingsPage() {
   };
 
   const handleSavePerfil = async () => {
+    if (!user?.id) return;
     setPerfilSaving(true);
     try {
-      const res = await fetch(`/api/usuarios/${USUARIO_ID}`, {
+      const res = await fetch(`/api/usuarios/${user.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -207,9 +215,10 @@ export default function SettingsPage() {
   };
 
   const handleAvatarUpload = async (base64: string) => {
+    if (!user?.id) return;
     setPerfil((prev) => ({ ...prev, avatar: base64 }));
     try {
-      await fetch(`/api/usuarios/${USUARIO_ID}`, {
+      await fetch(`/api/usuarios/${user.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ avatar: base64 }),
@@ -227,12 +236,14 @@ export default function SettingsPage() {
           description="Gerencie as configurações do escritório"
         />
 
-        <Tabs defaultValue="empresa" className="space-y-6">
+        <Tabs defaultValue={defaultTab} className="space-y-6">
           <TabsList>
-            <TabsTrigger value="empresa" className="gap-2">
-              <Building2 className="h-4 w-4" />
-              Empresa
-            </TabsTrigger>
+            {isManager && (
+              <TabsTrigger value="empresa" className="gap-2">
+                <Building2 className="h-4 w-4" />
+                Empresa
+              </TabsTrigger>
+            )}
             <TabsTrigger value="perfil" className="gap-2">
               <User className="h-4 w-4" />
               Perfil
@@ -245,86 +256,90 @@ export default function SettingsPage() {
               <Shield className="h-4 w-4" />
               Segurança
             </TabsTrigger>
-            <TabsTrigger value="tipos" className="gap-2">
-              <Tag className="h-4 w-4" />
-              Tipos de Processo
-            </TabsTrigger>
+            {isManager && (
+              <TabsTrigger value="tipos" className="gap-2">
+                <Tag className="h-4 w-4" />
+                Tipos de Processo
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Empresa Tab */}
-          <TabsContent value="empresa">
-            <Card>
-              <CardHeader>
-                <CardTitle>Dados da Empresa</CardTitle>
-                <CardDescription>
-                  Atualize as informações do seu escritório
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="empresa-nome">Nome do Escritório</Label>
-                    <Input
-                      id="empresa-nome"
-                      value={empresa.nome}
-                      onChange={(e) => setEmpresa({ ...empresa, nome: e.target.value })}
-                      placeholder="Nome do escritório"
-                    />
+          {isManager && (
+            <TabsContent value="empresa">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Dados da Empresa</CardTitle>
+                  <CardDescription>
+                    Atualize as informações do seu escritório
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="empresa-nome">Nome do Escritório</Label>
+                      <Input
+                        id="empresa-nome"
+                        value={empresa.nome}
+                        onChange={(e) => setEmpresa({ ...empresa, nome: e.target.value })}
+                        placeholder="Nome do escritório"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="empresa-cnpj">CNPJ</Label>
+                      <Input
+                        id="empresa-cnpj"
+                        value={empresa.cnpj}
+                        onChange={(e) => setEmpresa({ ...empresa, cnpj: e.target.value })}
+                        placeholder="00.000.000/0000-00"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="empresa-email">Email</Label>
+                      <Input
+                        id="empresa-email"
+                        type="email"
+                        value={empresa.email}
+                        onChange={(e) => setEmpresa({ ...empresa, email: e.target.value })}
+                        placeholder="contato@escritorio.com"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="empresa-telefone">Telefone</Label>
+                      <Input
+                        id="empresa-telefone"
+                        value={empresa.telefone}
+                        onChange={(e) => setEmpresa({ ...empresa, telefone: e.target.value })}
+                        placeholder="(00) 0000-0000"
+                      />
+                    </div>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="empresa-cnpj">CNPJ</Label>
+                    <Label htmlFor="empresa-endereco">Endereço</Label>
                     <Input
-                      id="empresa-cnpj"
-                      value={empresa.cnpj}
-                      onChange={(e) => setEmpresa({ ...empresa, cnpj: e.target.value })}
-                      placeholder="00.000.000/0000-00"
+                      id="empresa-endereco"
+                      value={empresa.endereco}
+                      onChange={(e) => setEmpresa({ ...empresa, endereco: e.target.value })}
+                      placeholder="Endereço completo"
                     />
                   </div>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="empresa-email">Email</Label>
-                    <Input
-                      id="empresa-email"
-                      type="email"
-                      value={empresa.email}
-                      onChange={(e) => setEmpresa({ ...empresa, email: e.target.value })}
-                      placeholder="contato@escritorio.com"
-                    />
+                  <Separator />
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={handleSaveEmpresa}
+                      disabled={empresaSaving}
+                      className="bg-[#8B5CF6] hover:bg-[#7C3AED]"
+                    >
+                      {empresaSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Salvar Alterações
+                    </Button>
                   </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="empresa-telefone">Telefone</Label>
-                    <Input
-                      id="empresa-telefone"
-                      value={empresa.telefone}
-                      onChange={(e) => setEmpresa({ ...empresa, telefone: e.target.value })}
-                      placeholder="(00) 0000-0000"
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="empresa-endereco">Endereço</Label>
-                  <Input
-                    id="empresa-endereco"
-                    value={empresa.endereco}
-                    onChange={(e) => setEmpresa({ ...empresa, endereco: e.target.value })}
-                    placeholder="Endereço completo"
-                  />
-                </div>
-                <Separator />
-                <div className="flex justify-end">
-                  <Button
-                    onClick={handleSaveEmpresa}
-                    disabled={empresaSaving}
-                    className="bg-[#8B5CF6] hover:bg-[#7C3AED]"
-                  >
-                    {empresaSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Salvar Alterações
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
           {/* Perfil Tab */}
           <TabsContent value="perfil">
@@ -499,71 +514,73 @@ export default function SettingsPage() {
           </TabsContent>
 
           {/* Tipos de Processo Tab */}
-          <TabsContent value="tipos">
-            <Card>
-              <CardHeader>
-                <CardTitle>Tipos de Processo</CardTitle>
-                <CardDescription>
-                  Adicione ou remova tipos de processo disponíveis no sistema
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2 items-end">
-                  <div className="grid gap-1.5 flex-1">
-                    <Label>Nome do tipo</Label>
-                    <Input
-                      value={novoTipoValor}
-                      onChange={(e) => setNovoTipoValor(e.target.value)}
-                      placeholder="Ex: ambiental"
-                      className="h-9"
-                    />
-                  </div>
-                  <Button
-                    onClick={handleAddTipo}
-                    disabled={tipoSaving || !novoTipoValor.trim()}
-                    className="bg-[#8B5CF6] hover:bg-[#7C3AED] h-9"
-                  >
-                    {tipoSaving ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Plus className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-                {novoTipoValor.trim() && (
-                  <p className="text-xs text-muted-foreground">
-                    Será criado como: <span className="font-medium text-foreground">
-                      {novoTipoValor.trim().toUpperCase().replace(/\s+/g, "_")}
-                    </span>
-                    {" → "}
-                    <span className="font-medium text-foreground">
-                      {novoTipoValor.trim().toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                    </span>
-                  </p>
-                )}
-                <div className="space-y-2">
-                  {tiposProcesso.map((tipo) => (
-                    <div
-                      key={tipo.id}
-                      className="flex items-center justify-between rounded-lg border border-border p-3"
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{tipo.label}</p>
-                        <p className="text-xs text-muted-foreground">{tipo.valor}</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => handleDeleteTipo(tipo.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                      </Button>
+          {isManager && (
+            <TabsContent value="tipos">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Tipos de Processo</CardTitle>
+                  <CardDescription>
+                    Adicione ou remova tipos de processo disponíveis no sistema
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2 items-end">
+                    <div className="grid gap-1.5 flex-1">
+                      <Label>Nome do tipo</Label>
+                      <Input
+                        value={novoTipoValor}
+                        onChange={(e) => setNovoTipoValor(e.target.value)}
+                        placeholder="Ex: ambiental"
+                        className="h-9"
+                      />
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    <Button
+                      onClick={handleAddTipo}
+                      disabled={tipoSaving || !novoTipoValor.trim()}
+                      className="bg-[#8B5CF6] hover:bg-[#7C3AED] h-9"
+                    >
+                      {tipoSaving ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  {novoTipoValor.trim() && (
+                    <p className="text-xs text-muted-foreground">
+                      Será criado como: <span className="font-medium text-foreground">
+                        {novoTipoValor.trim().toUpperCase().replace(/\s+/g, "_")}
+                      </span>
+                      {" → "}
+                      <span className="font-medium text-foreground">
+                        {novoTipoValor.trim().toLowerCase().replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                      </span>
+                    </p>
+                  )}
+                  <div className="space-y-2">
+                    {tiposProcesso.map((tipo) => (
+                      <div
+                        key={tipo.id}
+                        className="flex items-center justify-between rounded-lg border border-border p-3"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{tipo.label}</p>
+                          <p className="text-xs text-muted-foreground">{tipo.valor}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => handleDeleteTipo(tipo.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </DashboardLayout>

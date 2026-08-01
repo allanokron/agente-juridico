@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -184,6 +184,7 @@ function countPermissions(permissoes: Record<string, boolean>) {
 
 export default function TeamPage() {
   const { user } = useAuth();
+  const isManager = user?.role === "SUPER_ADMIN" || user?.role === "ADMINISTRADOR";
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [cargos, setCargos] = useState<Cargo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -420,11 +421,11 @@ export default function TeamPage() {
         <PageHeader
           title="Equipe"
           description="Gerencie os membros e cargos do seu escritório"
-          action={{
+          action={isManager ? {
             label: activeTab === "membros" ? "Convidar Membro" : "Novo Cargo",
             onClick: activeTab === "membros" ? handleCreateMember : handleCreateCargo,
             icon: <Plus className="h-4 w-4 mr-2" />,
-          }}
+          } : undefined}
         />
 
         <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as string); setSearchTerm(""); }}>
@@ -459,9 +460,9 @@ export default function TeamPage() {
             ) : filteredMembers.length === 0 ? (
               <EmptyState
                 title="Nenhum membro encontrado"
-                description="Comece convidando seu primeiro membro."
+                description={isManager ? "Comece convidando seu primeiro membro." : "Nenhum membro encontrado no escritório."}
                 icon={Users}
-                action={{ label: "Convidar Membro", onClick: handleCreateMember }}
+                action={isManager ? { label: "Convidar Membro", onClick: handleCreateMember } : undefined}
               />
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -471,20 +472,17 @@ export default function TeamPage() {
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-4">
                           <Avatar className="h-12 w-12">
-                            {member.avatar && <AvatarFallback className="bg-muted text-muted-foreground font-medium">
+                            <AvatarImage src={member.avatar ?? undefined} alt={member.nome} />
+                            <AvatarFallback className="bg-muted text-muted-foreground font-medium">
                               {getInitials(member.nome)}
-                            </AvatarFallback>}
-                            {!member.avatar && (
-                              <AvatarFallback className="bg-muted text-muted-foreground font-medium">
-                                {getInitials(member.nome)}
-                              </AvatarFallback>
-                            )}
+                            </AvatarFallback>
                           </Avatar>
                           <div>
                             <h3 className="font-medium text-foreground">{member.nome}</h3>
                             <p className="text-sm text-muted-foreground">{member.email}</p>
                           </div>
                         </div>
+                        {isManager && (
                         <DropdownMenu>
                           <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg hover:bg-muted hover:text-foreground cursor-pointer outline-none">
                             <MoreHorizontal className="h-4 w-4" />
@@ -525,6 +523,7 @@ export default function TeamPage() {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
+                        )}
                       </div>
                       <div className="mt-4 flex items-center justify-between">
                         <Badge variant="secondary" className={getRoleBadgeColor(member.role)}>
@@ -557,7 +556,7 @@ export default function TeamPage() {
                 title="Nenhum cargo encontrado"
                 description="Crie cargos para organizar as permissões do seu time."
                 icon={Shield}
-                action={{ label: "Novo Cargo", onClick: handleCreateCargo }}
+                action={isManager ? { label: "Novo Cargo", onClick: handleCreateCargo } : undefined}
               />
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -579,6 +578,7 @@ export default function TeamPage() {
                               </p>
                             </div>
                           </div>
+                          {isManager && (
                           <DropdownMenu>
                             <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-lg hover:bg-muted hover:text-foreground cursor-pointer outline-none">
                               <MoreHorizontal className="h-4 w-4" />
@@ -603,6 +603,7 @@ export default function TeamPage() {
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
+                          )}
                         </div>
                         {permCount > 0 && (
                           <div className="mt-3 flex flex-wrap gap-1">
