@@ -14,6 +14,7 @@ import {
   LogOut,
   Columns,
   UserRoundSearch,
+  Receipt,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/contexts/sidebar-context";
@@ -34,6 +35,7 @@ const navItems: NavItem[] = [
   { label: "Gestao de Processos", href: "/gestao-processos", icon: Columns, group: "Principal" },
   { label: "Processos", href: "/processos", icon: Briefcase, group: "Principal" },
   { label: "Clientes", href: "/clientes", icon: Users, group: "Cadastro" },
+  { label: "Recibos", href: "/recibos", icon: Receipt, group: "Financeiro" },
   { label: "Equipe", href: "/equipe", icon: Users, group: "Administração" },
   { label: "Configuracoes", href: "/configuracoes", icon: Settings, group: "Administração" },
 ];
