@@ -15,9 +15,6 @@ export async function GET(
       where: {
         id,
         empresaId: user.empresaId,
-        ...(isAdmin(user)
-          ? {}
-          : { processos: { some: { atribuicoes: { some: { usuarioId: user.id } } } } }),
       },
       include: {
         _count: {

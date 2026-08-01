@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSessionUser, isAdmin } from "@/lib/auth";
+import { getSessionUser } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,16 +11,6 @@ export async function GET(request: NextRequest) {
     const cpfCnpj = searchParams.get("cpfCnpj");
 
     const where: Record<string, unknown> = { empresaId };
-
-    if (!isAdmin(user)) {
-      where.processos = {
-        some: {
-          atribuicoes: {
-            some: { usuarioId: user.id },
-          },
-        },
-      };
-    }
 
     if (cpfCnpj) {
       const digits = cpfCnpj.replace(/\D/g, "");
