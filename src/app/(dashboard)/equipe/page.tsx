@@ -421,7 +421,7 @@ export default function TeamPage() {
           title="Equipe"
           description="Gerencie os membros e cargos do seu escritório"
           action={{
-            label: activeTab === "membros" ? "Convitar Membro" : "Novo Cargo",
+            label: activeTab === "membros" ? "Convidar Membro" : "Novo Cargo",
             onClick: activeTab === "membros" ? handleCreateMember : handleCreateCargo,
             icon: <Plus className="h-4 w-4 mr-2" />,
           }}
@@ -461,7 +461,7 @@ export default function TeamPage() {
                 title="Nenhum membro encontrado"
                 description="Comece convidando seu primeiro membro."
                 icon={Users}
-                action={{ label: "Convitar Membro", onClick: handleCreateMember }}
+                action={{ label: "Convidar Membro", onClick: handleCreateMember }}
               />
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -636,7 +636,7 @@ export default function TeamPage() {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle>
-              {editingMember ? "Editar Membro" : "Convitar Membro"}
+              {editingMember ? "Editar Membro" : "Convidar Membro"}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
