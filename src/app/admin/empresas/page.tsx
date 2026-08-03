@@ -321,7 +321,14 @@ export default function AdminEmpresasPage() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={filtroPlano} onValueChange={(v) => setFiltroPlano(v ?? "")}>
+          <Select
+            value={filtroPlano}
+            onValueChange={(v) => setFiltroPlano(v ?? "")}
+            items={[
+              { value: "all", label: "Todos" },
+              ...PLANOS.map((p) => ({ value: p, label: p })),
+            ]}
+          >
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Plano" />
             </SelectTrigger>
@@ -543,7 +550,11 @@ export default function AdminEmpresasPage() {
               </div>
               <div>
                 <Label className="text-sm font-bold">Plano</Label>
-                 <Select value={editForm.plano} onValueChange={(v) => setEditForm({ ...editForm, plano: v ?? "free" })}>
+                 <Select
+                   value={editForm.plano}
+                   onValueChange={(v) => setEditForm({ ...editForm, plano: v ?? "free" })}
+                   items={PLANOS.map((p) => ({ value: p, label: p }))}
+                 >
                   <SelectTrigger className="mt-2">
                     <SelectValue />
                   </SelectTrigger>

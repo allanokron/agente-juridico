@@ -420,6 +420,10 @@ export default function RecibosPage() {
               <Select
                 value={servicoTipoFilter}
                 onValueChange={(v) => setServicoTipoFilter(v ?? "all")}
+                items={[
+                  { value: "all", label: "Todos" },
+                  ...servicosTipo.map((s) => ({ value: s.id, label: s.nome })),
+                ]}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Todos" />
@@ -439,6 +443,11 @@ export default function RecibosPage() {
               <Select
                 value={statusFilter}
                 onValueChange={(v) => setStatusFilter(v ?? "ativo")}
+                items={[
+                  { value: "ativo", label: "Ativos" },
+                  { value: "inativo", label: "Inativos" },
+                  { value: "todos", label: "Todos" },
+                ]}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Ativos" />
@@ -628,6 +637,10 @@ export default function RecibosPage() {
               <Select
                 value={relatorioServicoTipo}
                 onValueChange={(v) => setRelatorioServicoTipo(v ?? "all")}
+                items={[
+                  { value: "all", label: "Todos" },
+                  ...servicosTipo.map((s) => ({ value: s.id, label: s.nome })),
+                ]}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Todos" />

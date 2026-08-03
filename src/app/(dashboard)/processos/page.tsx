@@ -304,7 +304,12 @@ export default function ProcessesPage() {
               </div>
               <div className="grid gap-1.5">
                 <Label className="text-xs text-muted-foreground">Tipo de cadastro</Label>
-                <Select value={filterPreProcesso} onValueChange={(v) => setFilterPreProcesso(v ?? "all")}>
+                <Select value={filterPreProcesso} onValueChange={(v) => setFilterPreProcesso(v ?? "all")}
+                  items={[
+                    { value: "all", label: "Todos" },
+                    { value: "processo", label: "Processos" },
+                    { value: "pre", label: "Pré-processos" },
+                  ]}>
                   <SelectTrigger className="w-[160px] h-9">
                     <SelectValue placeholder="Todos" />
                   </SelectTrigger>

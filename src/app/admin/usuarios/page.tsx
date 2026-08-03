@@ -283,7 +283,14 @@ export default function AdminUsuariosPage() {
               className="pl-10"
             />
           </div>
-          <Select value={filtroEmpresa} onValueChange={(v) => setFiltroEmpresa(v ?? "")}>
+          <Select
+            value={filtroEmpresa}
+            onValueChange={(v) => setFiltroEmpresa(v ?? "")}
+            items={[
+              { value: "all", label: "Todos" },
+              ...empresas.map((e) => ({ value: e.id, label: e.nome })),
+            ]}
+          >
             <SelectTrigger className="w-[220px]">
               <SelectValue placeholder="Escritório" />
             </SelectTrigger>
@@ -419,6 +426,10 @@ export default function AdminUsuariosPage() {
               <Select
                 value={createForm.empresaId}
                 onValueChange={(v) => setCreateForm({ ...createForm, empresaId: v === "all" ? "" : (v ?? "") })}
+                items={[
+                  { value: "all", label: "Selecione" },
+                  ...empresas.filter((e) => e.ativo).map((e) => ({ value: e.id, label: e.nome })),
+                ]}
               >
                 <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Selecione" />
@@ -439,6 +450,7 @@ export default function AdminUsuariosPage() {
               <Select
                 value={createForm.role}
                 onValueChange={(v) => setCreateForm({ ...createForm, role: v ?? "ASSISTENTE" })}
+                items={ROLES.map((r) => ({ value: r.value, label: r.label }))}
               >
                 <SelectTrigger className="mt-2">
                   <SelectValue />
@@ -478,6 +490,7 @@ export default function AdminUsuariosPage() {
               <Select
                 value={editForm.role}
                 onValueChange={(v) => setEditForm({ ...editForm, role: v ?? "ASSISTENTE" })}
+                items={ROLES.map((r) => ({ value: r.value, label: r.label }))}
               >
                 <SelectTrigger className="mt-2">
                   <SelectValue />

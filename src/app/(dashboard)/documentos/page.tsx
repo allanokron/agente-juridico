@@ -228,7 +228,19 @@ export default function DocumentsPage() {
               className="pl-9"
             />
           </div>
-          <Select value={filterType} onValueChange={(v) => v && setFilterType(v)}>
+          <Select
+            value={filterType}
+            onValueChange={(v) => v && setFilterType(v)}
+            items={[
+              { value: "all", label: "Todos os tipos" },
+              { value: "PDF", label: "PDF" },
+              { value: "IMAGEM", label: "Imagem" },
+              { value: "WORD", label: "Word" },
+              { value: "EXCEL", label: "Excel" },
+              { value: "ZIP", label: "ZIP" },
+              { value: "OUTRO", label: "Outro" },
+            ]}
+          >
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Tipo de arquivo" />
             </SelectTrigger>

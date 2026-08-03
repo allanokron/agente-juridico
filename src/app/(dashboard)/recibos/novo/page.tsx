@@ -293,7 +293,14 @@ export default function NovoReciboPage() {
             {pagadorModo === "cadastrado" && (
               <div className="grid gap-2">
                 <Label>Selecionar Cliente</Label>
-                <Select value={clienteId} onValueChange={(v) => setClienteId(v ?? "")}>
+                <Select
+                  value={clienteId}
+                  onValueChange={(v) => setClienteId(v ?? "")}
+                  items={clientes.map((c) => ({
+                    value: c.id,
+                    label: `${c.nome}${c.cpfCnpj ? ` - ${c.cpfCnpj}` : ""}`,
+                  }))}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Selecione um cliente" />
                   </SelectTrigger>
@@ -345,7 +352,14 @@ export default function NovoReciboPage() {
 
             <div className="grid gap-2">
               <Label>Tipo de Serviço *</Label>
-              <Select value={servicoTipoId} onValueChange={handleServicoSelect}>
+              <Select
+                value={servicoTipoId}
+                onValueChange={handleServicoSelect}
+                items={servicosTipo.map((s) => ({
+                  value: s.id,
+                  label: s.nome,
+                }))}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Selecione o tipo de serviço" />
                 </SelectTrigger>
