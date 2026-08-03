@@ -8,6 +8,8 @@ import {
   Plus,
   Search,
   Send,
+  Trash2,
+  ToggleLeft,
   UserRound,
   X,
 } from "lucide-react";
@@ -91,6 +93,8 @@ export default function AdminUsuariosPage() {
   const [editingUser, setEditingUser] = useState<Usuario | null>(null);
 
   const [resendingId, setResendingId] = useState<string | null>(null);
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -198,6 +202,22 @@ export default function AdminUsuariosPage() {
       body: JSON.stringify({ ativo: !usuario.ativo }),
     });
     await load();
+  }
+
+  async function deleteUsuario(usuario: Usuario) {
+    if (!confirm(`Tem certeza que deseja EXCLUIR permanentemente o usuário "${usuario.nome}"? Esta ação não pode ser desfeita.`)) return;
+    setDeletingId(usuario.id);
+    try {
+      const response = await fetch(`/api/admin/usuarios/${usuario.id}`, { method: "DELETE" });
+      if (response.ok) {
+        await load();
+      } else {
+        const result = await response.json();
+        alert(result.error || "Falha ao excluir usuário.");
+      }
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   function clearFilters() {
@@ -362,7 +382,21 @@ export default function AdminUsuariosPage() {
                           title={usuario.ativo ? "Desativar" : "Reativar"}
                           onClick={() => toggle(usuario)}
                         >
-                          {usuario.ativo ? "✕" : "✓"}
+                          <ToggleLeft className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          title="Excluir permanentemente"
+                          disabled={deletingId === usuario.id}
+                          onClick={() => deleteUsuario(usuario)}
+                        >
+                          {deletingId === usuario.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                     </TableCell>

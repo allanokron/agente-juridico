@@ -112,6 +112,8 @@ export default function AdminEmpresasPage() {
   const [editError, setEditError] = useState("");
   const [editingEmpresa, setEditingEmpresa] = useState<Empresa | null>(null);
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   async function load() {
     setLoading(true);
     const params = new URLSearchParams();
@@ -229,6 +231,22 @@ export default function AdminEmpresasPage() {
   async function retry(empresa: Empresa) {
     await fetch(`/api/admin/empresas/${empresa.id}/ativar`, { method: "POST" });
     await load();
+  }
+
+  async function deleteEmpresa(empresa: Empresa) {
+    if (!confirm(`Tem certeza que deseja EXCLUIR permanentemente o escritório "${empresa.nome}"? Todos os dados (usuários, processos, documentos) serão removidos. Esta ação não pode ser desfeita.`)) return;
+    setDeletingId(empresa.id);
+    try {
+      const response = await fetch(`/api/admin/empresas/${empresa.id}`, { method: "DELETE" });
+      if (response.ok) {
+        await load();
+      } else {
+        const result = await response.json();
+        alert(result.error || "Falha ao excluir escritório.");
+      }
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   function clearFilters() {
@@ -414,6 +432,20 @@ export default function AdminEmpresasPage() {
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          title="Excluir permanentemente"
+                          disabled={deletingId === empresa.id}
+                          onClick={() => deleteEmpresa(empresa)}
+                        >
+                          {deletingId === empresa.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

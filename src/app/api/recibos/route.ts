@@ -12,8 +12,15 @@ export async function GET(request: NextRequest) {
     const dataInicio = searchParams.get("dataInicio");
     const dataFim = searchParams.get("dataFim");
     const servicoTipoId = searchParams.get("servicoTipoId");
+    const status = searchParams.get("status"); // "ativo" | "inativo" | "todos" | null
 
     const where: Record<string, unknown> = { empresaId: user.empresaId };
+
+    if (status === "inativo") {
+      where.ativo = false;
+    } else if (status !== "todos") {
+      where.ativo = true;
+    }
 
     if (busca) {
       where.OR = [
@@ -74,13 +81,16 @@ export async function POST(request: NextRequest) {
       prestadorTipoDoc,
       prestadorCep,
       prestadorEndereco,
+      prestadorNumero,
+      prestadorComplemento,
+      prestadorBairro,
       prestadorCidade,
       prestadorUf,
       formaPagamento,
       pagamentoDetalhes,
     } = body;
 
-    if (!valor || !dataPagamento || !pagadorNome || !pagadorCpfCnpj || !pagadorTipoDoc || !servicoPrestado || !cidadePrestacao || !prestadorNome || !prestadorCpfCnpj || !prestadorTipoDoc || !prestadorCep || !formaPagamento) {
+    if (!valor || !dataPagamento || !pagadorNome || !pagadorCpfCnpj || !pagadorTipoDoc || !cidadePrestacao || !prestadorNome || !prestadorCpfCnpj || !prestadorTipoDoc || !prestadorCep || !formaPagamento) {
       return NextResponse.json(
         { error: "Campos obrigatórios não preenchidos" },
         { status: 400 }
@@ -105,7 +115,7 @@ export async function POST(request: NextRequest) {
         pagadorNome,
         pagadorCpfCnpj,
         pagadorTipoDoc,
-        servicoPrestado,
+        servicoPrestado: servicoPrestado || null,
         servicoTipoId: servicoTipoId || null,
         cidadePrestacao,
         prestadorNome,
@@ -113,6 +123,9 @@ export async function POST(request: NextRequest) {
         prestadorTipoDoc,
         prestadorCep,
         prestadorEndereco: prestadorEndereco || null,
+        prestadorNumero: prestadorNumero || null,
+        prestadorComplemento: prestadorComplemento || null,
+        prestadorBairro: prestadorBairro || null,
         prestadorCidade: prestadorCidade || null,
         prestadorUf: prestadorUf || null,
         formaPagamento,

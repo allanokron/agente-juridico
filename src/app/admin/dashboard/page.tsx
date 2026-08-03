@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Building2, Briefcase, Target, UserRoundSearch, Users } from "lucide-react";
+import { Building2, CheckCircle2, Handshake, Target, UserRoundSearch, Users } from "lucide-react";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -13,6 +13,9 @@ type DashboardData = {
   processos: number;
   leads: number;
   leadsNovos: number;
+  leadsEmNegociacao: number;
+  leadsGanhos: number;
+  leadsPerdidos: number;
   conversoesMes: number;
   recentes: Array<{
     id: string;
@@ -33,11 +36,11 @@ export default function AdminDashboardPage() {
   }, []);
 
   const stats = [
-    { label: "Leads", value: data?.leads ?? "—", detail: `${data?.leadsNovos ?? 0} novos`, icon: UserRoundSearch },
-    { label: "Conversões no mês", value: data?.conversoesMes ?? "—", detail: "ambientes ativados", icon: Target },
-    { label: "Escritórios ativos", value: data?.empresasAtivas ?? "—", detail: `${data?.empresas ?? 0} cadastrados`, icon: Building2 },
-    { label: "Usuários ativos", value: data?.usuarios ?? "—", detail: "em toda a plataforma", icon: Users },
-    { label: "Processos", value: data?.processos ?? "—", detail: "isolados por escritório", icon: Briefcase },
+    { label: "Leads Novos", value: data?.leadsNovos ?? "—", detail: "aguardando contato", icon: UserRoundSearch },
+    { label: "Em Negociação", value: data?.leadsEmNegociacao ?? "—", detail: "contato em andamento", icon: Handshake },
+    { label: "Convertidos", value: data?.leadsGanhos ?? "—", detail: "escritórios ativados", icon: CheckCircle2 },
+    { label: "Escritórios Ativos", value: data?.empresasAtivas ?? "—", detail: `${data?.empresas ?? 0} cadastrados`, icon: Building2 },
+    { label: "Total de Leads", value: data?.leads ?? "—", detail: "base completa", icon: Target },
   ];
 
   return (
@@ -45,7 +48,7 @@ export default function AdminDashboardPage() {
       <div className="space-y-7">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900">Visão geral da LEXO</h1>
-          <p className="mt-1 text-sm text-slate-500">Operação comercial e ambientes dos escritórios.</p>
+          <p className="mt-1 text-sm text-slate-500">Pipeline comercial e escritórios ativos.</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           {stats.map((stat) => (

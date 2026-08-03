@@ -156,36 +156,40 @@ model Empresa {
 // ============================================
 
 model Recibo {
-  id                String          @id @default(cuid())
-  empresaId         String
-  numero            Int
-  valor             Float
-  dataPagamento     DateTime
+  id                    String          @id @default(cuid())
+  empresaId             String
+  numero                Int
+  valor                 Float
+  dataPagamento         DateTime
 
-  pagadorNome       String
-  pagadorCpfCnpj    String
-  pagadorTipoDoc    String
+  pagadorNome           String
+  pagadorCpfCnpj        String
+  pagadorTipoDoc        String
 
-  servicoPrestado   String
-  servicoTipoId     String?
-  cidadePrestacao   String
+  servicoPrestado       String?
+  servicoTipoId         String?
+  cidadePrestacao       String
 
-  prestadorNome     String
-  prestadorCpfCnpj  String
-  prestadorTipoDoc  String
-  prestadorCep      String
-  prestadorEndereco String?
-  prestadorCidade   String?
-  prestadorUf       String?
+  prestadorNome         String
+  prestadorCpfCnpj      String
+  prestadorTipoDoc      String
+  prestadorCep          String
+  prestadorEndereco     String?
+  prestadorNumero       String?
+  prestadorComplemento  String?
+  prestadorBairro       String?
+  prestadorCidade       String?
+  prestadorUf           String?
 
-  formaPagamento    FormaPagamento
-  pagamentoDetalhes Json?
+  formaPagamento        FormaPagamento
+  pagamentoDetalhes     Json?
 
-  status            ReciboStatus   @default(EMITIDO)
-  criadoPorId       String
+  status                ReciboStatus   @default(EMITIDO)
+  ativo                 Boolean        @default(true)
+  criadoPorId           String
 
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
 
   empresa    Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   servicoTipo ServicoTipo? @relation(fields: [servicoTipoId], references: [id], onDelete: SetNull)

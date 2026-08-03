@@ -105,3 +105,60 @@ export async function PATCH(
 
   return NextResponse.json(empresa);
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const admin = await getSuperAdmin();
+  if (!admin) {
+    return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
+  }
+
+  const { id } = await params;
+
+  if (id === admin.empresaId) {
+    return NextResponse.json(
+      { error: "Não é possível excluir o próprio ambiente do administrador." },
+      { status: 409 }
+    );
+  }
+
+  const empresa = await prisma.empresa.findUnique({
+    where: { id },
+    include: {
+      usuarios: {
+        select: { clerkId: true },
+      },
+    },
+  });
+
+  if (!empresa) {
+    return NextResponse.json({ error: "Escritório não encontrado" }, { status: 404 });
+  }
+
+  const client = await clerkClient();
+  await Promise.allSettled(
+    empresa.usuarios
+      .filter((u) => u.clerkId)
+      .flatMap((u) => [
+        client.users.deleteUser(u.clerkId!),
+      ])
+  );
+
+  await prisma.$transaction(async (tx) => {
+    await tx.log.create({
+      data: {
+        usuarioId: admin.id,
+        empresaId: id,
+        acao: "EMPRESA_EXCLUIDA",
+        entidade: "Empresa",
+        entidadeId: id,
+      },
+    });
+
+    await tx.empresa.delete({ where: { id } });
+  });
+
+  return NextResponse.json({ ok: true });
+}

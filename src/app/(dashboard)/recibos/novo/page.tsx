@@ -83,6 +83,9 @@ export default function NovoReciboPage() {
   const [prestadorTipoDoc, setPrestadorTipoDoc] = useState<"CPF" | "CNPJ">("CNPJ");
   const [prestadorCep, setPrestadorCep] = useState("");
   const [prestadorEndereco, setPrestadorEndereco] = useState("");
+  const [prestadorNumero, setPrestadorNumero] = useState("");
+  const [prestadorComplemento, setPrestadorComplemento] = useState("");
+  const [prestadorBairro, setPrestadorBairro] = useState("");
   const [prestadorCidade, setPrestadorCidade] = useState("");
   const [prestadorUf, setPrestadorUf] = useState("");
 
@@ -139,9 +142,10 @@ export default function NovoReciboPage() {
       const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
       const data = await res.json();
       if (!data.erro) {
-        setPrestadorEndereco(`${data.logradouro}, ${data.bairro}`);
-        setPrestadorCidade(data.localidade);
-        setPrestadorUf(data.uf);
+        setPrestadorEndereco(data.logradouro || "");
+        setPrestadorBairro(data.bairro || "");
+        setPrestadorCidade(data.localidade || "");
+        setPrestadorUf(data.uf || "");
       } else {
         toast.error("CEP não encontrado");
       }
@@ -214,6 +218,9 @@ export default function NovoReciboPage() {
           prestadorTipoDoc,
           prestadorCep: prestadorCep.replace(/\D/g, ""),
           prestadorEndereco: prestadorEndereco || null,
+          prestadorNumero: prestadorNumero || null,
+          prestadorComplemento: prestadorComplemento || null,
+          prestadorBairro: prestadorBairro || null,
           prestadorCidade: prestadorCidade || null,
           prestadorUf: prestadorUf || null,
           formaPagamento,
@@ -442,29 +449,60 @@ export default function NovoReciboPage() {
                   placeholder="00000-000"
                 />
               </div>
-              <div className="grid gap-2">
-                <Label>Endereço</Label>
+              <div className="grid gap-2 md:col-span-2">
+                <Label>Rua</Label>
                 <Input
                   value={prestadorEndereco}
                   onChange={(e) => setPrestadorEndereco(e.target.value)}
-                  placeholder="Rua, número, bairro"
+                  placeholder="Logradouro"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="grid gap-2">
+                <Label>Bairro</Label>
+                <Input
+                  value={prestadorBairro}
+                  onChange={(e) => setPrestadorBairro(e.target.value)}
+                  placeholder="Bairro"
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Cidade/UF</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={prestadorCidade}
-                    onChange={(e) => setPrestadorCidade(e.target.value)}
-                    placeholder="Cidade"
-                  />
-                  <Input
-                    value={prestadorUf}
-                    onChange={(e) => setPrestadorUf(e.target.value)}
-                    placeholder="UF"
-                    className="w-16"
-                  />
-                </div>
+                <Label>Número</Label>
+                <Input
+                  value={prestadorNumero}
+                  onChange={(e) => setPrestadorNumero(e.target.value)}
+                  placeholder="Nº"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Complemento</Label>
+                <Input
+                  value={prestadorComplemento}
+                  onChange={(e) => setPrestadorComplemento(e.target.value)}
+                  placeholder="Apto, Sala, etc."
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Cidade</Label>
+                <Input
+                  value={prestadorCidade}
+                  onChange={(e) => setPrestadorCidade(e.target.value)}
+                  placeholder="Cidade"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="grid gap-2">
+                <Label>UF</Label>
+                <Input
+                  value={prestadorUf}
+                  onChange={(e) => setPrestadorUf(e.target.value)}
+                  placeholder="UF"
+                  className="w-16"
+                />
               </div>
             </div>
           </CardContent>

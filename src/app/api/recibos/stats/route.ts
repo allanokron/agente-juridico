@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const dataFim = searchParams.get("dataFim");
     const servicoTipoId = searchParams.get("servicoTipoId");
 
-    const where: Record<string, unknown> = { empresaId: user.empresaId };
+    const where: Record<string, unknown> = { empresaId: user.empresaId, ativo: true };
 
     if (dataInicio || dataFim) {
       where.dataPagamento = {};

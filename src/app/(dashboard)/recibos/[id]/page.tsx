@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, Printer } from "lucide-react";
+import { Loader2, ArrowLeft, Printer, ToggleLeft } from "lucide-react";
 
 interface Recibo {
   id: string;
@@ -24,11 +24,15 @@ interface Recibo {
   prestadorTipoDoc: string;
   prestadorCep: string;
   prestadorEndereco: string | null;
+  prestadorNumero: string | null;
+  prestadorComplemento: string | null;
+  prestadorBairro: string | null;
   prestadorCidade: string | null;
   prestadorUf: string | null;
   formaPagamento: string;
   pagamentoDetalhes: Record<string, string> | null;
   status: string;
+  ativo: boolean;
   createdAt: string;
 }
 
@@ -209,6 +213,7 @@ export default function ReciboDetailPage({ params }: { params: Promise<{ id: str
   const [recibo, setRecibo] = useState<Recibo | null>(null);
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [loading, setLoading] = useState(true);
+  const [toggling, setToggling] = useState(false);
 
   useEffect(() => {
     params.then(({ id }) => setReciboId(id));
@@ -246,6 +251,28 @@ export default function ReciboDetailPage({ params }: { params: Promise<{ id: str
   useEffect(() => {
     void load();
   }, [load]);
+
+  const handleToggleAtivo = async () => {
+    if (!recibo) return;
+    const msg = recibo.ativo
+      ? "Tem certeza que deseja inativar este recibo? Ele não aparecerá mais nos indicadores."
+      : "Deseja reativar este recibo?";
+    if (!confirm(msg)) return;
+    setToggling(true);
+    try {
+      const res = await fetch(`/api/recibos/${recibo.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ativo: !recibo.ativo }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setRecibo(updated);
+      }
+    } finally {
+      setToggling(false);
+    }
+  };
 
   if (loading || !recibo) {
     return (
@@ -326,10 +353,13 @@ export default function ReciboDetailPage({ params }: { params: Promise<{ id: str
                 <strong>{recibo.prestadorNome}</strong>,{" "}
                 {recibo.prestadorTipoDoc} nº <strong>{recibo.prestadorCpfCnpj}</strong>
               </p>
-              {recibo.prestadorEndereco && (
+              {(recibo.prestadorEndereco || recibo.prestadorCidade) && (
                 <p className="text-xs text-muted-foreground">
                   {recibo.prestadorEndereco}
-                  {recibo.prestadorCidade && `, ${recibo.prestadorCidade}`}
+                  {recibo.prestadorNumero && `, ${recibo.prestadorNumero}`}
+                  {recibo.prestadorComplemento && ` - ${recibo.prestadorComplemento}`}
+                  {recibo.prestadorBairro && ` | ${recibo.prestadorBairro}`}
+                  {recibo.prestadorCidade && ` | ${recibo.prestadorCidade}`}
                   {recibo.prestadorUf && ` - ${recibo.prestadorUf}`}
                   {recibo.prestadorCep && ` | CEP: ${recibo.prestadorCep}`}
                 </p>
@@ -398,6 +428,19 @@ export default function ReciboDetailPage({ params }: { params: Promise<{ id: str
           >
             <Printer className="h-4 w-4 mr-2" />
             Imprimir
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleToggleAtivo}
+            disabled={toggling}
+            className={recibo.ativo ? "text-red-600 border-red-200 hover:bg-red-50" : "text-emerald-600 border-emerald-200 hover:bg-emerald-50"}
+          >
+            {toggling ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <ToggleLeft className="h-4 w-4 mr-2" />
+            )}
+            {recibo.ativo ? "Inativar Recibo" : "Reativar Recibo"}
           </Button>
         </div>
       </div>

@@ -19,6 +19,9 @@ export async function GET() {
     processos,
     leads,
     leadsNovos,
+    leadsEmNegociacao,
+    leadsGanhos,
+    leadsPerdidos,
     conversoesMes,
     recentes,
   ] = await Promise.all([
@@ -28,6 +31,11 @@ export async function GET() {
     prisma.processo.count(),
     prisma.lead.count(),
     prisma.lead.count({ where: { status: "NOVO" } }),
+    prisma.lead.count({
+      where: { status: { in: ["EM_CONTATO", "QUALIFICADO", "PROPOSTA"] } },
+    }),
+    prisma.lead.count({ where: { status: "GANHO" } }),
+    prisma.lead.count({ where: { status: "PERDIDO" } }),
     prisma.lead.count({ where: { status: "GANHO", updatedAt: { gte: start } } }),
     prisma.lead.findMany({
       take: 6,
@@ -49,6 +57,9 @@ export async function GET() {
     processos,
     leads,
     leadsNovos,
+    leadsEmNegociacao,
+    leadsGanhos,
+    leadsPerdidos,
     conversoesMes,
     recentes,
   });

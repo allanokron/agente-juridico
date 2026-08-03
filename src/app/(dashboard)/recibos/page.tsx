@@ -45,9 +45,10 @@ import {
   DollarSign,
   FileText,
   Users,
-  Settings,
   Loader2,
   Trash2,
+  ToggleLeft,
+  FileDown,
 } from "lucide-react";
 
 interface Recibo {
@@ -59,12 +60,91 @@ interface Recibo {
   pagadorCpfCnpj: string;
   servicoPrestado: string;
   formaPagamento: string;
+  ativo: boolean;
   servicoTipo?: { id: string; nome: string } | null;
 }
 
 interface ServicoTipo {
   id: string;
   nome: string;
+}
+
+interface ServicoStat {
+  servicoTipoId: string | null;
+  nome: string;
+  count: number;
+  totalValor: number;
+}
+
+const PIE_COLORS = [
+  "#8B5CF6",
+  "#3B82F6",
+  "#10B981",
+  "#F59E0B",
+  "#EF4444",
+  "#EC4899",
+  "#06B6D4",
+  "#84CC16",
+  "#F97316",
+  "#6366F1",
+];
+
+function PieChart({ data }: { data: ServicoStat[] }) {
+  const total = data.reduce((acc, d) => acc + d.count, 0);
+  if (total === 0) return null;
+
+  let accumulated = 0;
+  const slices = data.map((d, i) => {
+    const percentage = (d.count / total) * 100;
+    const startAngle = (accumulated / total) * 360;
+    accumulated += d.count;
+    const endAngle = (accumulated / total) * 360;
+
+    const startRad = ((startAngle - 90) * Math.PI) / 180;
+    const endRad = ((endAngle - 90) * Math.PI) / 180;
+
+    const x1 = 100 + 80 * Math.cos(startRad);
+    const y1 = 100 + 80 * Math.sin(startRad);
+    const x2 = 100 + 80 * Math.cos(endRad);
+    const y2 = 100 + 80 * Math.sin(endRad);
+
+    const largeArc = percentage > 50 ? 1 : 0;
+
+    const path = `M 100 100 L ${x1} ${y1} A 80 80 0 ${largeArc} 1 ${x2} ${y2} Z`;
+
+    return {
+      path,
+      color: PIE_COLORS[i % PIE_COLORS.length],
+      percentage: percentage.toFixed(1),
+      nome: d.nome,
+      count: d.count,
+    };
+  });
+
+  return (
+    <Card>
+      <CardContent className="p-6">
+        <h3 className="text-sm font-bold text-slate-700 mb-4">Serviços por Tipo de Recibo</h3>
+        <div className="flex flex-col sm:flex-row items-center gap-6">
+          <svg viewBox="0 0 200 200" className="w-48 h-48 shrink-0">
+            {slices.map((slice, i) => (
+              <path key={i} d={slice.path} fill={slice.color} stroke="white" strokeWidth="2" />
+            ))}
+          </svg>
+          <div className="flex-1 space-y-2 w-full">
+            {slices.map((slice, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: slice.color }} />
+                <span className="text-sm font-medium text-slate-700 flex-1 truncate">{slice.nome}</span>
+                <span className="text-sm text-slate-500">{slice.count}</span>
+                <span className="text-sm font-bold text-slate-900 w-14 text-right">{slice.percentage}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 const currencyFmt = new Intl.NumberFormat("pt-BR", {
@@ -95,11 +175,20 @@ export default function RecibosPage() {
   const [dataFim, setDataFim] = useState(format(today, "yyyy-MM-dd"));
   const [busca, setBusca] = useState("");
   const [servicoTipoFilter, setServicoTipoFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("ativo");
 
   const [servicosTipo, setServicosTipo] = useState<ServicoTipo[]>([]);
   const [servicosDialogOpen, setServicosDialogOpen] = useState(false);
   const [novoServicoNome, setNovoServicoNome] = useState("");
   const [addingServico, setAddingServico] = useState(false);
+  const [porServico, setPorServico] = useState<ServicoStat[]>([]);
+
+  const [relatorioOpen, setRelatorioOpen] = useState(false);
+  const [relatorioDataInicio, setRelatorioDataInicio] = useState(format(sevenDaysAgo, "yyyy-MM-dd"));
+  const [relatorioDataFim, setRelatorioDataFim] = useState(format(today, "yyyy-MM-dd"));
+  const [relatorioServicoTipo, setRelatorioServicoTipo] = useState("all");
+  const [relatorioFormato, setRelatorioFormato] = useState<"pdf" | "excel">("pdf");
+  const [gerandoRelatorio, setGerandoRelatorio] = useState(false);
 
   const fetchRecibos = useCallback(async () => {
     setLoading(true);
@@ -110,6 +199,7 @@ export default function RecibosPage() {
       if (busca) params.set("busca", busca);
       if (servicoTipoFilter && servicoTipoFilter !== "all")
         params.set("servicoTipoId", servicoTipoFilter);
+      if (statusFilter) params.set("status", statusFilter);
 
       const [recibosRes, statsRes] = await Promise.all([
         fetch(`/api/recibos?${params.toString()}`),
@@ -124,13 +214,14 @@ export default function RecibosPage() {
           totalRecibos: s.totalRecibos,
           clientesAtendidos: s.clientesAtendidos,
         });
+        setPorServico(s.porServico || []);
       }
     } catch {
       toast.error("Erro ao carregar recibos");
     } finally {
       setLoading(false);
     }
-  }, [dataInicio, dataFim, busca, servicoTipoFilter]);
+  }, [dataInicio, dataFim, busca, servicoTipoFilter, statusFilter]);
 
   const fetchServicosTipo = useCallback(async () => {
     try {
@@ -186,6 +277,62 @@ export default function RecibosPage() {
     }
   };
 
+  const handleToggleAtivo = async (recibo: Recibo) => {
+    const msg = recibo.ativo
+      ? `Tem certeza que deseja inativar o recibo #${String(recibo.numero).padStart(4, "0")}? Ele não aparecerá mais nos indicadores.`
+      : `Deseja reativar o recibo #${String(recibo.numero).padStart(4, "0")}?`;
+    if (!confirm(msg)) return;
+    try {
+      const res = await fetch(`/api/recibos/${recibo.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ativo: !recibo.ativo }),
+      });
+      if (res.ok) {
+        toast.success(recibo.ativo ? "Recibo inativado" : "Recibo reativado");
+        fetchRecibos();
+      } else {
+        toast.error("Erro ao atualizar recibo");
+      }
+    } catch {
+      toast.error("Erro ao atualizar recibo");
+    }
+  };
+
+  const handleGerarRelatorio = async () => {
+    setGerandoRelatorio(true);
+    try {
+      const params = new URLSearchParams();
+      if (relatorioDataInicio) params.set("dataInicio", relatorioDataInicio);
+      if (relatorioDataFim) params.set("dataFim", relatorioDataFim);
+      if (relatorioServicoTipo && relatorioServicoTipo !== "all")
+        params.set("servicoTipoId", relatorioServicoTipo);
+      params.set("formato", relatorioFormato);
+
+      const res = await fetch(`/api/recibos/relatorio?${params.toString()}`);
+      if (!res.ok) {
+        toast.error("Erro ao gerar relatório");
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `recibos_${new Date().toISOString().slice(0, 10)}.${relatorioFormato === "pdf" ? "pdf" : "xlsx"}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      setRelatorioOpen(false);
+      toast.success("Relatório gerado com sucesso!");
+    } catch {
+      toast.error("Erro ao gerar relatório");
+    } finally {
+      setGerandoRelatorio(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -205,8 +352,16 @@ export default function RecibosPage() {
             onClick={() => setServicosDialogOpen(true)}
             className="border-[#8B5CF6]/30 text-[#8B5CF6] hover:bg-[#8B5CF6]/5"
           >
-            <Settings className="h-4 w-4 mr-2" />
-            Serviços
+            <Plus className="h-4 w-4 mr-2" />
+            Cadastrar Serviço
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setRelatorioOpen(true)}
+            className="border-slate-300 text-slate-700 hover:bg-slate-50"
+          >
+            <FileDown className="h-4 w-4 mr-2" />
+            Gerar Relatório
           </Button>
         </div>
 
@@ -228,8 +383,10 @@ export default function RecibosPage() {
           />
         </div>
 
+        {porServico.length > 0 && <PieChart data={porServico} />}
+
         <Card>
-          <CardContent className="grid gap-4 py-4 md:grid-cols-4">
+          <CardContent className="grid gap-4 py-4 md:grid-cols-5">
             <div className="grid gap-2">
               <Label>Data Início</Label>
               <Input
@@ -277,6 +434,22 @@ export default function RecibosPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid gap-2">
+              <Label>Status</Label>
+              <Select
+                value={statusFilter}
+                onValueChange={(v) => setStatusFilter(v ?? "ativo")}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Ativos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ativo">Ativos</SelectItem>
+                  <SelectItem value="inativo">Inativos</SelectItem>
+                  <SelectItem value="todos">Todos</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardContent>
         </Card>
 
@@ -307,12 +480,13 @@ export default function RecibosPage() {
                     <TableHead>Serviço</TableHead>
                     <TableHead>Valor</TableHead>
                     <TableHead>Forma Pgto</TableHead>
-                    <TableHead className="w-[60px]"></TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[80px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {recibos.map((recibo) => (
-                    <TableRow key={recibo.id}>
+                    <TableRow key={recibo.id} className={recibo.ativo ? "" : "opacity-50"}>
                       <TableCell className="font-medium">
                         #{String(recibo.numero).padStart(4, "0")}
                       </TableCell>
@@ -333,14 +507,32 @@ export default function RecibosPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => router.push(`/recibos/${recibo.id}`)}
-                          title="Ver recibo"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        {recibo.ativo ? (
+                          <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Ativo</Badge>
+                        ) : (
+                          <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-100">Inativo</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => router.push(`/recibos/${recibo.id}`)}
+                            title="Ver recibo"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-8 w-8 ${recibo.ativo ? "text-red-600 hover:text-red-700 hover:bg-red-50" : "text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"}`}
+                            title={recibo.ativo ? "Inativar" : "Reativar"}
+                            onClick={() => handleToggleAtivo(recibo)}
+                          >
+                            <ToggleLeft className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -404,6 +596,88 @@ export default function RecibosPage() {
             <DialogClose
               render={<Button variant="outline">Fechar</Button>}
             />
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={relatorioOpen} onOpenChange={setRelatorioOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Gerar Relatório de Recibos</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>Data Início</Label>
+                <Input
+                  type="date"
+                  value={relatorioDataInicio}
+                  onChange={(e) => setRelatorioDataInicio(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Data Fim</Label>
+                <Input
+                  type="date"
+                  value={relatorioDataFim}
+                  onChange={(e) => setRelatorioDataFim(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label>Tipo de Serviço</Label>
+              <Select
+                value={relatorioServicoTipo}
+                onValueChange={(v) => setRelatorioServicoTipo(v ?? "all")}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {servicosTipo.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Formato</Label>
+              <div className="flex gap-3">
+                <Button
+                  variant={relatorioFormato === "pdf" ? "default" : "outline"}
+                  onClick={() => setRelatorioFormato("pdf")}
+                  className={relatorioFormato === "pdf" ? "bg-[#8B5CF6] hover:bg-[#7C3AED]" : ""}
+                >
+                  PDF
+                </Button>
+                <Button
+                  variant={relatorioFormato === "excel" ? "default" : "outline"}
+                  onClick={() => setRelatorioFormato("excel")}
+                  className={relatorioFormato === "excel" ? "bg-[#8B5CF6] hover:bg-[#7C3AED]" : ""}
+                >
+                  Excel
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose
+              render={<Button variant="outline" disabled={gerandoRelatorio}>Cancelar</Button>}
+            />
+            <Button
+              onClick={handleGerarRelatorio}
+              disabled={gerandoRelatorio}
+              className="bg-[#8B5CF6] hover:bg-[#7C3AED]"
+            >
+              {gerandoRelatorio ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <FileDown className="h-4 w-4 mr-2" />
+              )}
+              Gerar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
