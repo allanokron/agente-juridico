@@ -15,6 +15,7 @@ import {
   Columns,
   UserRoundSearch,
   Receipt,
+  Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/contexts/sidebar-context";
@@ -50,11 +51,23 @@ const adminNavItems: NavItem[] = [
   { label: "Configuracoes", href: "/admin/configuracoes", icon: Settings, group: "Sistema" },
 ];
 
+const ALMEIDA_SAKURADA_ID = "cms85ekgp000004kzu3g95rcm";
+
 export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const { isCollapsed, toggleSidebar } = useSidebar();
   const { user, logout } = useAuth();
   const items = isAdmin ? adminNavItems : navItems;
+
+  const finalItems = [...items];
+  if (!isAdmin && user?.empresaId === ALMEIDA_SAKURADA_ID) {
+    finalItems.push({
+      label: "Recibos Exclusivos",
+      href: "/recibos-asa",
+      icon: Star,
+      group: "Financeiro",
+    });
+  }
 
   const initials = user?.nome
     .split(" ")
@@ -63,7 +76,7 @@ export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
     .join("")
     .toUpperCase() ?? "??";
 
-  const grouped = items.reduce<Record<string, NavItem[]>>((acc, item) => {
+  const grouped = finalItems.reduce<Record<string, NavItem[]>>((acc, item) => {
     const group = item.group || "Outros";
     if (!acc[group]) acc[group] = [];
     acc[group].push(item);

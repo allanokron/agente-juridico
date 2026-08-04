@@ -324,8 +324,9 @@ export default function AdminUsuariosPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>E-mail</TableHead>
+                   <TableHead>ID</TableHead>
+                   <TableHead>Nome</TableHead>
+                   <TableHead>E-mail</TableHead>
                   <TableHead>Telefone</TableHead>
                   <TableHead>Escritório</TableHead>
                   <TableHead>Função</TableHead>
@@ -337,8 +338,11 @@ export default function AdminUsuariosPage() {
               <TableBody>
                 {usuarios.map((usuario) => (
                   <TableRow key={usuario.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
+                     <TableCell>
+                       <p className="font-mono text-xs text-slate-500">{usuario.id}</p>
+                     </TableCell>
+                     <TableCell>
+                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-violet-50">
                           <UserRound className="h-4 w-4 text-violet-600" />
                         </div>

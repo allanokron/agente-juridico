@@ -362,8 +362,9 @@ export default function AdminEmpresasPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Escritório</TableHead>
-                  <TableHead>Contato</TableHead>
+                   <TableHead>ID</TableHead>
+                   <TableHead>Escritório</TableHead>
+                   <TableHead>Contato</TableHead>
                   <TableHead>Localização</TableHead>
                   <TableHead>Plano</TableHead>
                   <TableHead>Status</TableHead>
@@ -375,7 +376,10 @@ export default function AdminEmpresasPage() {
               <TableBody>
                 {empresas.map((empresa) => (
                   <TableRow key={empresa.id}>
-                    <TableCell>
+                     <TableCell>
+                       <p className="font-mono text-xs text-slate-500">{empresa.id}</p>
+                     </TableCell>
+                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 text-violet-700">
                           <Building2 className="h-4 w-4" />
