@@ -168,6 +168,7 @@ model Recibo {
 
   servicoPrestado       String?
   servicoTipoId         String?
+  observacao            String?
   cidadePrestacao       String
 
   prestadorNome         String

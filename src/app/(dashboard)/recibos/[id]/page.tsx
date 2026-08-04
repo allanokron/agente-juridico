@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ interface Recibo {
   pagadorTipoDoc: string;
   servicoPrestado: string;
   servicoTipo?: { id: string; nome: string } | null;
+  observacao?: string | null;
   cidadePrestacao: string;
   prestadorNome: string;
   prestadorCpfCnpj: string;
@@ -320,23 +321,29 @@ export default function ReciboDetailPage({ params }: { params: Promise<{ id: str
         </div>
 
         <div className="recibo-print bg-white border rounded-xl p-5 max-w-[800px] mx-auto shadow-sm print:shadow-none print:border-0 print:p-0 print:max-w-none">
-          <div className="text-center border-b pb-4 mb-4">
-            {empresa?.logo && (
-              <img
-                src={empresa.logo}
-                alt="Logo"
-                className="h-14 mx-auto mb-3 object-contain"
-              />
-            )}
-            <h2 className="text-2xl font-bold tracking-tight">RECIBO DE PAGAMENTO</h2>
-            <p className="text-base text-muted-foreground mt-1">
-              N° {String(recibo.numero).padStart(4, "0")}
-            </p>
+          <div className="flex items-center border-b pb-4 mb-4">
+            <div className="flex-shrink-0">
+              {empresa?.logo && (
+                <img
+                  src={empresa.logo}
+                  alt="Logo"
+                  className="h-14 object-contain"
+                />
+              )}
+            </div>
+            <div className="flex-1 text-center">
+              <h2 className="text-2xl font-bold tracking-tight">RECIBO DE PAGAMENTO</h2>
+            </div>
+            <div className="flex-shrink-0 text-right">
+              <p className="text-lg font-bold text-muted-foreground">
+                N° {String(recibo.numero).padStart(4, "0")}
+              </p>
+            </div>
           </div>
 
           <div className="space-y-4 text-sm leading-relaxed">
             <p>
-              Recebi de <strong className="text-base">{recibo.pagadorNome}</strong>,
+              Recebemos de <strong className="text-base">{recibo.pagadorNome}</strong>,
               inscrito(a) no {recibo.pagadorTipoDoc} sob o nº{" "}
               <strong>{recibo.pagadorCpfCnpj}</strong>, o valor de{" "}
               <strong className="text-base">{currencyFmt.format(recibo.valor)}</strong>{" "}
@@ -344,8 +351,15 @@ export default function ReciboDetailPage({ params }: { params: Promise<{ id: str
               <strong>{recibo.servicoTipo?.nome ?? recibo.servicoPrestado}</strong>
               {recibo.servicoPrestado && recibo.servicoTipo ? `, ${recibo.servicoPrestado}` : ""},{" "}
               prestado(a) na cidade de <strong>{recibo.cidadePrestacao}</strong>, na data
-              de <strong>{format(new Date(recibo.dataPagamento), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</strong>.
+              de <strong>{format(parseISO(recibo.dataPagamento.split("T")[0]), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}</strong>.
             </p>
+
+            {recibo.observacao && (
+              <div className="border-t pt-3">
+                <h3 className="font-semibold mb-1 text-sm">Observação</h3>
+                <p className="text-sm whitespace-pre-wrap">{recibo.observacao}</p>
+              </div>
+            )}
 
             <div className="border-t pt-3">
               <h3 className="font-semibold mb-1 text-sm">Dados do Prestador</h3>
@@ -383,7 +397,7 @@ export default function ReciboDetailPage({ params }: { params: Promise<{ id: str
                 {localEmissao
                   ? `${localEmissao}, `
                   : ""}
-                {format(new Date(recibo.createdAt), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}.
+                {format(parseISO(recibo.createdAt.split("T")[0]), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}.
               </p>
             </div>
           </div>

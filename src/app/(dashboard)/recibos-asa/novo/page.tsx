@@ -73,6 +73,7 @@ export default function NovoReciboAsaPage() {
   const [pagadorTipoDoc, setPagadorTipoDoc] = useState<"CPF" | "CNPJ">("CPF");
 
   const [observacaoServico, setObservacaoServico] = useState("");
+  const [observacao, setObservacao] = useState("");
   const [servicoTipoId, setServicoTipoId] = useState("");
   const [cidadePrestacao, setCidadePrestacao] = useState("");
   const [dataPagamento, setDataPagamento] = useState(format(new Date(), "yyyy-MM-dd"));
@@ -212,6 +213,7 @@ export default function NovoReciboAsaPage() {
           pagadorTipoDoc,
           servicoPrestado: observacaoServico.trim() || null,
           servicoTipoId: servicoTipoId || null,
+          observacao: observacao.trim() || null,
           cidadePrestacao: cidadePrestacao.trim(),
           prestadorNome: prestadorNome.trim(),
           prestadorCpfCnpj: prestadorCpfCnpj.trim(),
@@ -379,6 +381,17 @@ export default function NovoReciboAsaPage() {
                 value={observacaoServico}
                 onChange={(e) => setObservacaoServico(e.target.value)}
                 placeholder="Observações adicionais sobre o serviço (opcional)"
+                rows={3}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Observação no Recibo</Label>
+              <textarea
+                value={observacao}
+                onChange={(e) => setObservacao(e.target.value)}
+                placeholder="Texto livre que aparecerá no recibo (opcional)"
                 rows={3}
                 className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               />
