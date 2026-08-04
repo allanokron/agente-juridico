@@ -251,10 +251,12 @@ export default function AdminUsuariosPage() {
 
   function formatDate(dateStr: string | null | undefined) {
     if (!dateStr) return "Nunca";
-    return new Date(dateStr).toLocaleDateString("pt-BR", {
+    return new Date(dateStr).toLocaleString("pt-BR", {
       day: "2-digit",
       month: "2-digit",
       year: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   }
 
