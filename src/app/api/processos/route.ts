@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
             usuario: { select: { id: true, nome: true, email: true } },
           },
         },
+        _count: { select: { documentos: true, eventos: true } },
       },
       orderBy: { createdAt: "desc" },
     });

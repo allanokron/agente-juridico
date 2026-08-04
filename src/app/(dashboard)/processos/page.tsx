@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardLayout } from "@/components/layout/dashboard-layout";
 import { PageHeader } from "@/components/shared/page-header";
@@ -32,6 +32,10 @@ import {
   Loader2,
   Filter,
   X,
+  Pencil,
+  CalendarCheck,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { CreateProcessDialog } from "@/components/kanban/create-process-dialog";
 
@@ -49,13 +53,24 @@ interface Processo {
   status: string;
   observacoes: string | null;
   dataCadastro: string;
-  _count: { documentos: number };
+  _count: { documentos: number; eventos: number };
   kanbanCard: {
     id: string;
     etapa: { id: string; nome: string; cor: string } | null;
     dataRevisao: string | null;
   } | null;
   atribuicoes: { id: string; usuario: { id: string; nome: string } }[];
+}
+
+interface Evento {
+  id: string;
+  titulo: string;
+  descricao?: string | null;
+  data: string;
+  hora?: string | null;
+  tipo: string;
+  prioridade: string;
+  status: string;
 }
 
 const DEFAULT_TIPOS = [
@@ -72,11 +87,45 @@ const DEFAULT_TIPOS = [
   { value: "OUTRO", label: "Outro" },
 ];
 
+const STATUS_COLORS: Record<string, string> = {
+  PENDENTE: "bg-amber-100 text-amber-700",
+  EM_ANDAMENTO: "bg-blue-100 text-blue-700",
+  CONCLUIDO: "bg-green-100 text-green-700",
+  CANCELADO: "bg-slate-100 text-slate-500",
+  REAGENDADO: "bg-purple-100 text-purple-700",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  PENDENTE: "Pendente",
+  EM_ANDAMENTO: "Em andamento",
+  CONCLUIDO: "Concluído",
+  CANCELADO: "Cancelado",
+  REAGENDADO: "Reagendado",
+};
+
+const TIPO_LABELS: Record<string, string> = {
+  AUDIENCIA: "Audiência",
+  PRAZO: "Prazo",
+  REUNIAO: "Reunião",
+  PROTOCOLO: "Protocolo",
+  LEMBRETE: "Lembrete",
+  PERSONALIZADO: "Personalizado",
+};
+
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+  });
+}
+
+function formatEventoDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
   });
 }
 
@@ -96,6 +145,10 @@ export default function ProcessesPage() {
   const [filterDataFim, setFilterDataFim] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [tiposProcesso, setTiposProcesso] = useState(DEFAULT_TIPOS);
+
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedEventos, setExpandedEventos] = useState<Evento[]>([]);
+  const [loadingEventos, setLoadingEventos] = useState(false);
 
   const fetchProcessos = useCallback(async () => {
     setLoading(true);
@@ -166,6 +219,28 @@ export default function ProcessesPage() {
   const handleCreated = () => {
     setKanbanKey((k) => k + 1);
     fetchProcessos();
+  };
+
+  const toggleExpand = async (processo: Processo, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (expandedId === processo.id) {
+      setExpandedId(null);
+      setExpandedEventos([]);
+      return;
+    }
+    setExpandedId(processo.id);
+    setLoadingEventos(true);
+    try {
+      const res = await fetch(`/api/processos/${processo.id}/atividades`);
+      if (res.ok) {
+        const data = await res.json();
+        setExpandedEventos(data);
+      }
+    } catch {
+      // handled silently
+    } finally {
+      setLoadingEventos(false);
+    }
   };
 
   const hasActiveFilters =
@@ -341,81 +416,174 @@ export default function ProcessesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-8" />
                     <TableHead>Número do Processo</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Responsável</TableHead>
                     <TableHead>Etapa</TableHead>
-                    <TableHead>Documentos</TableHead>
+                    <TableHead className="text-center">Atividades</TableHead>
+                    <TableHead className="text-center">Documentos</TableHead>
                     <TableHead>Criado em</TableHead>
                     <TableHead>Próximo Evento</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredProcessos.map((processo) => (
-                    <TableRow
-                      key={processo.id}
-                      className={`cursor-pointer hover:bg-muted/30 ${processo.isPreProcesso ? "bg-amber-50/50" : ""}`}
-                      onClick={() => router.push(`/processos/${processo.id}`)}
-                    >
-                      <TableCell className="font-mono text-sm">
-                        {processo.isPreProcesso ? (
-                          <div className="flex items-center gap-2">
-                            <span>{processo.numeroProcesso || "Sem número"}</span>
-                            <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-[10px]">Pré</Badge>
-                          </div>
-                        ) : (
-                          processo.numeroProcesso || "—"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-sm">{processo.cliente?.nome}</p>
-                          {processo.cliente?.cpfCnpj && (
-                            <p className="text-xs text-muted-foreground">{processo.cliente.cpfCnpj}</p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {tiposProcesso.find((t) => t.value === processo.tipoProcesso)?.label ??
-                          processo.tipoProcesso}
-                      </TableCell>
-                      <TableCell className="text-sm">{processo.responsavel?.nome}</TableCell>
-                      <TableCell>
-                        {processo.kanbanCard?.etapa ? (
-                          <Badge
-                            variant="secondary"
-                            className="text-xs"
-                            style={{
-                              backgroundColor: processo.kanbanCard.etapa.cor
-                                ? `${processo.kanbanCard.etapa.cor}18`
-                                : undefined,
-                              color: processo.kanbanCard.etapa.cor ?? undefined,
-                            }}
+                  {filteredProcessos.map((processo) => {
+                    const isExpanded = expandedId === processo.id;
+                    return (
+                      <Fragment key={processo.id}>
+                        <TableRow
+                          key={`${processo.id}-row`}
+                          className={`cursor-pointer hover:bg-muted/30 ${processo.isPreProcesso ? "bg-amber-50/50" : ""}`}
+                          onClick={() => router.push(`/processos/${processo.id}`)}
+                        >
+                          <TableCell
+                            className="w-8 px-2"
+                            onClick={(e) => toggleExpand(processo, e)}
                           >
-                            {processo.kanbanCard.etapa.nome}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground/60 text-xs">Sem etapa</span>
+                            {(processo._count?.eventos ?? 0) > 0 ? (
+                              <button
+                                className="p-1 rounded hover:bg-muted transition-colors"
+                                title={isExpanded ? "Recolher atividades" : "Ver atividades"}
+                              >
+                                {isExpanded ? (
+                                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </button>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">
+                            {processo.isPreProcesso ? (
+                              <div className="flex items-center gap-2">
+                                <span>{processo.numeroProcesso || "Sem número"}</span>
+                                <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-[10px]">Pré</Badge>
+                              </div>
+                            ) : (
+                              processo.numeroProcesso || "—"
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium text-sm">{processo.cliente?.nome}</p>
+                              {processo.cliente?.cpfCnpj && (
+                                <p className="text-xs text-muted-foreground">{processo.cliente.cpfCnpj}</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {tiposProcesso.find((t) => t.value === processo.tipoProcesso)?.label ??
+                              processo.tipoProcesso}
+                          </TableCell>
+                          <TableCell className="text-sm">{processo.responsavel?.nome}</TableCell>
+                          <TableCell>
+                            {processo.kanbanCard?.etapa ? (
+                              <Badge
+                                variant="secondary"
+                                className="text-xs"
+                                style={{
+                                  backgroundColor: processo.kanbanCard.etapa.cor
+                                    ? `${processo.kanbanCard.etapa.cor}18`
+                                    : undefined,
+                                  color: processo.kanbanCard.etapa.cor ?? undefined,
+                                }}
+                              >
+                                {processo.kanbanCard.etapa.nome}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground/60 text-xs">Sem etapa</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <CalendarCheck className="h-3.5 w-3.5 text-muted-foreground/60" />
+                              <span>{processo._count?.eventos ?? 0}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-center">
+                            {processo._count?.documentos ?? 0}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {formatDate(processo.dataCadastro)}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {processo.kanbanCard?.dataRevisao ? (
+                              <Badge variant="outline" className="text-xs">
+                                {formatDate(processo.kanbanCard.dataRevisao)}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground/60 text-xs">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              title="Editar processo"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/processos/${processo.id}`);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        {isExpanded && (
+                          <TableRow key={`${processo.id}-expanded`} className="bg-muted/20 hover:bg-muted/30">
+                            <TableCell colSpan={11} className="p-0">
+                              <div className="px-6 py-4">
+                                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                                  Atividades do processo
+                                </h4>
+                                {loadingEventos ? (
+                                  <div className="flex items-center gap-2 py-4">
+                                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground/60" />
+                                    <span className="text-sm text-muted-foreground">Carregando atividades...</span>
+                                  </div>
+                                ) : expandedEventos.length === 0 ? (
+                                  <p className="text-sm text-muted-foreground py-2">
+                                    Nenhuma atividade cadastrada para este processo.
+                                  </p>
+                                ) : (
+                                  <div className="space-y-2">
+                                    {expandedEventos.map((evento) => (
+                                      <div
+                                        key={evento.id}
+                                        className="flex items-center gap-3 rounded-lg border bg-white p-3"
+                                      >
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-sm font-medium truncate">{evento.titulo}</span>
+                                            <Badge
+                                              className={`text-[10px] ${STATUS_COLORS[evento.status] || "bg-slate-100 text-slate-500"}`}
+                                            >
+                                              {STATUS_LABELS[evento.status] || evento.status}
+                                            </Badge>
+                                            <Badge variant="outline" className="text-[10px]">
+                                              {TIPO_LABELS[evento.tipo] || evento.tipo}
+                                            </Badge>
+                                          </div>
+                                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                                            <span>{formatEventoDate(evento.data)}</span>
+                                            {evento.hora && <span>às {evento.hora}</span>}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
                         )}
-                      </TableCell>
-                      <TableCell className="text-sm text-center">
-                        {processo._count?.documentos ?? 0}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatDate(processo.dataCadastro)}
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {processo.kanbanCard?.dataRevisao ? (
-                          <Badge variant="outline" className="text-xs">
-                            {formatDate(processo.kanbanCard.dataRevisao)}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground/60 text-xs">—</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                      </Fragment>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>

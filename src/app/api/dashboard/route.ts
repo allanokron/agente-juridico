@@ -30,13 +30,14 @@ export async function GET() {
       processo: {
         select: {
           numeroProcesso: true,
+          isPreProcesso: true,
           cliente: { select: { nome: true } },
         },
       },
       etapa: { select: { nome: true, cor: true } },
     };
 
-    const [processosAtivos, allCards] = await Promise.all([
+    const [processosAtivos, allCards, eventosProcesso] = await Promise.all([
       prisma.processo.count({
         where: {
           empresaId,
@@ -58,6 +59,33 @@ export async function GET() {
         },
         include: kanbanInclude,
         orderBy: { dataRevisao: "asc" },
+        take: 200,
+      }),
+      prisma.evento.findMany({
+        where: {
+          empresaId,
+          processoId: { not: null },
+          data: { gte: startOfToday, lte: endOfNext30Days },
+          ...(!isAdmin(user)
+            ? {
+                OR: [
+                  { responsavelId: user.id },
+                  { processo: { atribuicoes: { some: { usuarioId: user.id } } } },
+                ],
+              }
+            : {}),
+        },
+        include: {
+          processo: {
+            select: {
+              id: true,
+              numeroProcesso: true,
+              isPreProcesso: true,
+              cliente: { select: { nome: true } },
+            },
+          },
+        },
+        orderBy: { data: "asc" },
         take: 200,
       }),
     ]);
@@ -89,6 +117,7 @@ export async function GET() {
       atividadesAmanha,
       atrasados,
       agenda,
+      eventos: eventosProcesso,
     });
   } catch (error) {
     console.error("Erro ao buscar dados do dashboard:", error);

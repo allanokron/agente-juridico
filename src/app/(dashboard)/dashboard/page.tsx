@@ -23,6 +23,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar,
+  Zap,
 } from "lucide-react";
 import {
   format,
@@ -46,9 +47,41 @@ interface KanbanActivity {
   hora: string | null;
   processo: {
     numeroProcesso: string | null;
+    isPreProcesso: boolean;
     cliente: { nome: string };
   };
   etapa: { nome: string; cor: string | null };
+}
+
+interface CalendarEvent {
+  id: string;
+  titulo: string;
+  data: string;
+  hora: string | null;
+  tipo: string;
+  prioridade: string;
+  status: string;
+  processo: {
+    id: string;
+    numeroProcesso: string | null;
+    isPreProcesso: boolean;
+    cliente: { nome: string };
+  } | null;
+}
+
+interface CalendarItem {
+  id: string;
+  tipo: "kanban" | "evento";
+  data: Date;
+  hora: string | null;
+  titulo: string;
+  subtitulo: string;
+  processoLabel: string;
+  clienteLabel: string;
+  etapaCor: string | null;
+  etapaNome: string;
+  isPreProcesso: boolean;
+  raw: KanbanActivity | CalendarEvent;
 }
 
 interface DashboardData {
@@ -57,9 +90,19 @@ interface DashboardData {
   atividadesAmanha: KanbanActivity[];
   atrasados: KanbanActivity[];
   agenda: KanbanActivity[];
+  eventos: CalendarEvent[];
 }
 
 const weekDays = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sab", "Dom"];
+
+const TIPO_LABELS: Record<string, string> = {
+  AUDIENCIA: "Audiência",
+  PRAZO: "Prazo",
+  REUNIAO: "Reunião",
+  PROTOCOLO: "Protocolo",
+  LEMBRETE: "Lembrete",
+  PERSONALIZADO: "Personalizado",
+};
 
 function getMonthDays(currentMonth: Date) {
   const start = startOfMonth(currentMonth);
@@ -86,13 +129,63 @@ function getWeekDays(currentDate: Date) {
   return Array.from({ length: 7 }, (_, i) => addDays(start, i));
 }
 
-function sortActivitiesByTime(activities: KanbanActivity[]): KanbanActivity[] {
-  return [...activities].sort((a, b) => {
+function sortItemsByTime(items: CalendarItem[]): CalendarItem[] {
+  return [...items].sort((a, b) => {
     if (a.hora && b.hora) return a.hora.localeCompare(b.hora);
     if (a.hora && !b.hora) return -1;
     if (!a.hora && b.hora) return 1;
     return 0;
   });
+}
+
+function getProcessLabel(item: KanbanActivity | CalendarEvent): string {
+  if ("processo" in item && item.processo) {
+    const p = item.processo;
+    if (p.isPreProcesso && !p.numeroProcesso) return "Pré-processo";
+    return p.numeroProcesso || "S/N";
+  }
+  return "";
+}
+
+function buildCalendarItems(agenda: KanbanActivity[], eventos: CalendarEvent[]): CalendarItem[] {
+  const items: CalendarItem[] = [];
+
+  for (const card of agenda) {
+    if (!card.dataRevisao) continue;
+    items.push({
+      id: card.id,
+      tipo: "kanban",
+      data: new Date(card.dataRevisao),
+      hora: card.hora,
+      titulo: card.etapa.nome,
+      subtitulo: "",
+      processoLabel: getProcessLabel(card),
+      clienteLabel: card.processo.cliente.nome,
+      etapaCor: card.etapa.cor,
+      etapaNome: card.etapa.nome,
+      isPreProcesso: card.processo.isPreProcesso,
+      raw: card,
+    });
+  }
+
+  for (const ev of eventos) {
+    items.push({
+      id: `ev-${ev.id}`,
+      tipo: "evento",
+      data: new Date(ev.data),
+      hora: ev.hora,
+      titulo: ev.titulo,
+      subtitulo: TIPO_LABELS[ev.tipo] || ev.tipo,
+      processoLabel: ev.processo ? getProcessLabel(ev) : "",
+      clienteLabel: ev.processo?.cliente.nome || "",
+      etapaCor: "#8B5CF6",
+      etapaNome: TIPO_LABELS[ev.tipo] || ev.tipo,
+      isPreProcesso: ev.processo?.isPreProcesso ?? false,
+      raw: ev,
+    });
+  }
+
+  return items;
 }
 
 export default function DashboardPage() {
@@ -109,6 +202,8 @@ export default function DashboardPage() {
   const [editDate, setEditDate] = useState("");
   const [editTime, setEditTime] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  const [atrasadosOpen, setAtrasadosOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -198,22 +293,30 @@ export default function DashboardPage() {
   }
 
   const agenda = data?.agenda ?? [];
+  const eventos = data?.eventos ?? [];
+  const allCalendarItems = buildCalendarItems(agenda, eventos);
 
-  const selectedDayActivities = sortActivitiesByTime(
-    agenda.filter(
-      (a) => a.dataRevisao && isSameDay(new Date(a.dataRevisao), selectedDate)
+  const selectedDayItems = sortItemsByTime(
+    allCalendarItems.filter(
+      (item) => isSameDay(item.data, selectedDate)
     )
   );
 
   const calendarDays =
     view === "mes" ? getMonthDays(currentMonth) : getWeekDays(selectedDate);
 
-  const getActivitiesForDay = (day: Date) =>
-    sortActivitiesByTime(
-      agenda.filter(
-        (a) => a.dataRevisao && isSameDay(new Date(a.dataRevisao), day)
+  const getItemsForDay = (day: Date) =>
+    sortItemsByTime(
+      allCalendarItems.filter(
+        (item) => isSameDay(item.data, day)
       )
     );
+
+  const handleKanbanCardClick = (item: CalendarItem) => {
+    if (item.tipo === "kanban") {
+      openEditDialog(item.raw as KanbanActivity);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -257,6 +360,7 @@ export default function DashboardPage() {
             title="Atrasados"
             value={data?.atrasados?.length ?? 0}
             icon={AlertTriangle}
+            onClick={() => setAtrasadosOpen(true)}
           />
         </div>
 
@@ -317,24 +421,24 @@ export default function DashboardPage() {
               </Button>
             </div>
 
-            {/* Month View */}
             {view === "mes" && (
               <>
-                <div className="grid grid-cols-7 gap-px bg-border rounded-2xl overflow-hidden">
+                <div className="grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden">
                   {weekDays.map((day) => (
                     <div
                       key={day}
-                      className="text-center text-xs font-semibold text-muted-foreground py-2.5 bg-white uppercase tracking-wider"
+                      className="bg-muted/50 py-2 text-center text-xs font-semibold text-muted-foreground"
                     >
                       {day}
                     </div>
                   ))}
+                </div>
+                <div className="grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden">
                   {calendarDays.map((day) => {
-                    const dayActivities = getActivitiesForDay(day);
+                    const dayItems = getItemsForDay(day).slice(0, 4);
+                    const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
                     const isSelected = isSameDay(day, selectedDate);
                     const isCurrentDay = isToday(day);
-                    const isCurrentMonth =
-                      day.getMonth() === currentMonth.getMonth();
 
                     return (
                       <button
@@ -357,38 +461,45 @@ export default function DashboardPage() {
                           {format(day, "d")}
                         </span>
                         <div className="mt-1 space-y-0.5">
-                          {dayActivities.slice(0, 4).map((activity) => (
+                          {dayItems.map((item) => (
                             <button
-                              key={activity.id}
+                              key={item.id}
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openEditDialog(activity);
+                                if (item.tipo === "kanban") {
+                                  handleKanbanCardClick(item);
+                                }
                               }}
-                              title={`Etapa: ${activity.etapa.nome}\nProcesso: ${activity.processo.numeroProcesso || "S/N"}\nCliente: ${activity.processo.cliente.nome}\nClique para editar data/hora`}
+                              title={`${item.etapaNome}\n${item.processoLabel}\n${item.clienteLabel}\n${item.tipo === "evento" ? "Atividade" : "Etapa do kanban"}`}
                               className="block w-full text-left rounded-md px-1.5 py-0.5 border-l-[3px] leading-tight truncate"
                               style={{
-                                backgroundColor: activity.etapa.cor
-                                  ? `${activity.etapa.cor}18`
+                                backgroundColor: item.etapaCor
+                                  ? `${item.etapaCor}18`
                                   : "#F1F5F9",
                                 borderLeftColor:
-                                  activity.etapa.cor || "#9CA3AF",
+                                  item.etapaCor || "#9CA3AF",
                               }}
                             >
                               <span className="block text-[9px] font-bold text-muted-foreground leading-tight">
-                                {activity.hora || "s/ horario"}
+                                {item.hora || "s/ horario"}
                               </span>
+                              {item.tipo === "evento" && (
+                                <span className="block text-[8px] font-bold text-purple-600 leading-tight">
+                                  {item.subtitulo}
+                                </span>
+                              )}
                               <span className="block text-[10px] font-semibold text-foreground leading-tight truncate">
-                                {activity.processo.numeroProcesso || "S/N"}
+                                {item.processoLabel}
                               </span>
                               <span className="block text-[9px] text-muted-foreground leading-tight truncate">
-                                {activity.processo.cliente.nome}
+                                {item.clienteLabel}
                               </span>
                             </button>
                           ))}
-                          {dayActivities.length > 4 && (
+                          {dayItems.length > 4 && (
                             <div className="text-[10px] text-muted-foreground font-medium px-1">
-                              +{dayActivities.length - 4} mais
+                              +{dayItems.length - 4} mais
                             </div>
                           )}
                         </div>
@@ -399,12 +510,11 @@ export default function DashboardPage() {
               </>
             )}
 
-            {/* Week View */}
             {view === "semana" && (
               <div className="grid grid-cols-7 gap-2">
                 {calendarDays.map((day) => {
-                  const dayActivities = getActivitiesForDay(day).slice(0, 8);
-                  const totalActivities = getActivitiesForDay(day).length;
+                  const dayItems = getItemsForDay(day).slice(0, 8);
+                  const totalItems = getItemsForDay(day).length;
                   const isSelected = isSameDay(day, selectedDate);
                   const isCurrentDay = isToday(day);
 
@@ -437,44 +547,51 @@ export default function DashboardPage() {
                         </div>
                       </button>
                       <div className="p-1.5 space-y-1 min-h-[60px]">
-                        {dayActivities.length === 0 ? (
+                        {dayItems.length === 0 ? (
                           <p className="text-[10px] text-muted-foreground/40 text-center py-2">
                             —
                           </p>
                         ) : (
                           <>
-                            {dayActivities.map((activity) => (
+                            {dayItems.map((item) => (
                               <button
-                                key={activity.id}
+                                key={item.id}
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  openEditDialog(activity);
+                                  if (item.tipo === "kanban") {
+                                    handleKanbanCardClick(item);
+                                  }
                                 }}
-                                title={`Etapa: ${activity.etapa.nome}\nCliente: ${activity.processo.cliente.nome}\nClique para editar data/hora`}
+                                title={`${item.etapaNome}\n${item.clienteLabel}\n${item.tipo === "evento" ? "Atividade" : "Etapa do kanban"}`}
                                 className="block w-full text-left rounded-lg px-1.5 py-1 text-[11px] leading-tight border-l-[3px]"
                                 style={{
-                                  backgroundColor: activity.etapa.cor
-                                    ? `${activity.etapa.cor}12`
+                                  backgroundColor: item.etapaCor
+                                    ? `${item.etapaCor}12`
                                     : "#F8FAFC",
                                   borderLeftColor:
-                                    activity.etapa.cor || "#9CA3AF",
+                                    item.etapaCor || "#9CA3AF",
                                 }}
                               >
                                 <span className="block font-bold text-foreground leading-tight">
-                                  {activity.hora || "s/ horario"}
+                                  {item.hora || "s/ horario"}
                                 </span>
+                                {item.tipo === "evento" && (
+                                  <span className="block text-[9px] font-bold text-purple-600 leading-tight">
+                                    {item.subtitulo}
+                                  </span>
+                                )}
                                 <span className="block text-muted-foreground truncate leading-tight">
-                                  {activity.processo.numeroProcesso || "S/N"}
+                                  {item.processoLabel}
                                 </span>
                                 <span className="block text-muted-foreground truncate leading-tight text-[10px]">
-                                  {activity.processo.cliente.nome}
+                                  {item.clienteLabel}
                                 </span>
                               </button>
                             ))}
-                            {totalActivities > 8 && (
+                            {totalItems > 8 && (
                               <div className="text-[10px] text-muted-foreground font-medium text-center px-1">
-                                +{totalActivities - 8} mais
+                                +{totalItems - 8} mais
                               </div>
                             )}
                           </>
@@ -493,23 +610,27 @@ export default function DashboardPage() {
                   locale: ptBR,
                 })}
               </h4>
-              {selectedDayActivities.length === 0 ? (
+              {selectedDayItems.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">
                   Nenhuma atividade para este dia
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {selectedDayActivities.map((activity) => {
+                  {selectedDayItems.map((item) => {
                     const isOverdue =
-                      activity.dataRevisao &&
-                      isBefore(new Date(activity.dataRevisao), new Date()) &&
-                      !isToday(new Date(activity.dataRevisao));
+                      item.data &&
+                      isBefore(item.data, new Date()) &&
+                      !isToday(item.data);
 
                     return (
                       <button
-                        key={activity.id}
+                        key={item.id}
                         type="button"
-                        onClick={() => openEditDialog(activity)}
+                        onClick={() => {
+                          if (item.tipo === "kanban") {
+                            handleKanbanCardClick(item);
+                          }
+                        }}
                         className={`w-full text-left flex items-center justify-between rounded-xl border p-4 transition-colors cursor-pointer ${
                           isOverdue
                             ? "border-destructive/20 bg-destructive/5 hover:bg-destructive/10"
@@ -521,38 +642,41 @@ export default function DashboardPage() {
                             className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                             style={{
                               backgroundColor:
-                                activity.etapa.cor ||
+                                item.etapaCor ||
                                 (isOverdue ? "#EF4444" : "#9CA3AF"),
                             }}
                           />
                           <div>
-                            <p
-                              className={`text-sm font-semibold ${
-                                isOverdue
-                                  ? "text-destructive"
-                                  : "text-foreground"
-                              }`}
-                            >
-                              {activity.processo.numeroProcesso || "Sem numero"}{" "}
-                              - {activity.etapa.nome}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p
+                                className={`text-sm font-semibold ${
+                                  isOverdue
+                                    ? "text-destructive"
+                                    : "text-foreground"
+                                }`}
+                              >
+                                {item.processoLabel}{" "}
+                                - {item.etapaNome}
+                              </p>
+                              {item.tipo === "evento" && (
+                                <Badge className="bg-purple-100 text-purple-700 hover:bg-purple-100 text-[10px]">
+                                  <Zap className="h-2.5 w-2.5 mr-0.5" />
+                                  Atividade
+                                </Badge>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              {activity.processo.cliente.nome}
+                              {item.clienteLabel}
                             </p>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                              {activity.hora && (
+                              {item.hora && (
                                 <span className="font-medium">
-                                  {activity.hora}
+                                  {item.hora}
                                 </span>
                               )}
-                              {activity.dataRevisao && (
-                                <span>
-                                  {format(
-                                    new Date(activity.dataRevisao),
-                                    "dd/MM/yyyy"
-                                  )}
-                                </span>
-                              )}
+                              <span>
+                                {format(item.data, "dd/MM/yyyy")}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -605,7 +729,9 @@ export default function DashboardPage() {
               </div>
               <div className="space-y-1.5">
                 <p className="text-xs text-muted-foreground">
-                  {editingCard.processo.numeroProcesso || "S/N"}
+                  {editingCard.processo.isPreProcesso && !editingCard.processo.numeroProcesso
+                    ? "Pré-processo"
+                    : editingCard.processo.numeroProcesso || "S/N"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {editingCard.processo.cliente.nome}
@@ -643,6 +769,63 @@ export default function DashboardPage() {
             >
               {updatingId === editingCard?.id ? "Salvando..." : "Salvar"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Atrasados Dialog */}
+      <Dialog open={atrasadosOpen} onOpenChange={setAtrasadosOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Itens Atrasados
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {(!data?.atrasados || data.atrasados.length === 0) ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                Nenhuma atividade atrasada. Tudo em dia!
+              </p>
+            ) : (
+              data.atrasados.map((card) => (
+                <div
+                  key={card.id}
+                  className="flex items-center justify-between rounded-xl border border-destructive/20 bg-destructive/5 p-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{
+                        backgroundColor: card.etapa.cor || "#EF4444",
+                      }}
+                    />
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        {card.processo.isPreProcesso && !card.processo.numeroProcesso
+                          ? "Pré-processo"
+                          : card.processo.numeroProcesso || "S/N"}{" "}
+                        - {card.etapa.nome}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {card.processo.cliente.nome}
+                      </p>
+                      {card.dataRevisao && (
+                        <p className="text-xs text-destructive font-medium mt-0.5">
+                          Prazo: {format(new Date(card.dataRevisao), "dd/MM/yyyy")}
+                          {card.hora && ` às ${card.hora}`}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline" />}>
+              Fechar
+            </DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>

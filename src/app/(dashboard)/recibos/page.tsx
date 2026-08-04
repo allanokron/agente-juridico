@@ -89,57 +89,47 @@ const PIE_COLORS = [
   "#6366F1",
 ];
 
-function PieChart({ data }: { data: ServicoStat[] }) {
+function ServiceBreakdown({ data }: { data: ServicoStat[] }) {
   const total = data.reduce((acc, d) => acc + d.count, 0);
   if (total === 0) return null;
 
-  let accumulated = 0;
-  const slices = data.map((d, i) => {
-    const percentage = (d.count / total) * 100;
-    const startAngle = (accumulated / total) * 360;
-    accumulated += d.count;
-    const endAngle = (accumulated / total) * 360;
-
-    const startRad = ((startAngle - 90) * Math.PI) / 180;
-    const endRad = ((endAngle - 90) * Math.PI) / 180;
-
-    const x1 = 100 + 80 * Math.cos(startRad);
-    const y1 = 100 + 80 * Math.sin(startRad);
-    const x2 = 100 + 80 * Math.cos(endRad);
-    const y2 = 100 + 80 * Math.sin(endRad);
-
-    const largeArc = percentage > 50 ? 1 : 0;
-
-    const path = `M 100 100 L ${x1} ${y1} A 80 80 0 ${largeArc} 1 ${x2} ${y2} Z`;
-
-    return {
-      path,
-      color: PIE_COLORS[i % PIE_COLORS.length],
-      percentage: percentage.toFixed(1),
-      nome: d.nome,
-      count: d.count,
-    };
-  });
-
   return (
     <Card>
-      <CardContent className="p-6">
-        <h3 className="text-sm font-bold text-slate-700 mb-4">Serviços por Tipo de Recibo</h3>
-        <div className="flex flex-col sm:flex-row items-center gap-6">
-          <svg viewBox="0 0 200 200" className="w-48 h-48 shrink-0">
-            {slices.map((slice, i) => (
-              <path key={i} d={slice.path} fill={slice.color} stroke="white" strokeWidth="2" />
-            ))}
-          </svg>
-          <div className="flex-1 space-y-2 w-full">
-            {slices.map((slice, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: slice.color }} />
-                <span className="text-sm font-medium text-slate-700 flex-1 truncate">{slice.nome}</span>
-                <span className="text-sm text-slate-500">{slice.count}</span>
-                <span className="text-sm font-bold text-slate-900 w-14 text-right">{slice.percentage}%</span>
-              </div>
-            ))}
+      <CardContent className="p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <h3 className="text-sm font-bold text-slate-700 shrink-0">Serviços</h3>
+          <div className="flex-1 flex items-center gap-3">
+            <div className="flex-1 h-5 rounded-full overflow-hidden flex">
+              {data.map((d, i) => {
+                const pct = (d.count / total) * 100;
+                return (
+                  <div
+                    key={d.servicoTipoId}
+                    style={{
+                      width: `${pct}%`,
+                      backgroundColor: PIE_COLORS[i % PIE_COLORS.length],
+                    }}
+                    className="h-full first:rounded-l-full last:rounded-r-full"
+                    title={`${d.nome}: ${d.count} (${pct.toFixed(1)}%)`}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              {data.map((d, i) => {
+                const pct = ((d.count / total) * 100).toFixed(0);
+                return (
+                  <div key={d.servicoTipoId} className="flex items-center gap-1.5">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
+                    />
+                    <span className="text-xs text-slate-600">{d.nome}</span>
+                    <span className="text-xs font-semibold text-slate-900">{pct}%</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </CardContent>
@@ -383,7 +373,7 @@ export default function RecibosPage() {
           />
         </div>
 
-        {porServico.length > 0 && <PieChart data={porServico} />}
+        {porServico.length > 0 && <ServiceBreakdown data={porServico} />}
 
         <Card>
           <CardContent className="grid gap-4 py-4 md:grid-cols-5">
