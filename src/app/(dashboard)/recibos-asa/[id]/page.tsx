@@ -44,6 +44,7 @@ interface Empresa {
   cidade: string | null;
   uf: string | null;
   logo: string | null;
+  logoExclusiva: string | null;
   telefone: string | null;
   email: string | null;
 }
@@ -224,7 +225,7 @@ export default function ReciboAsaDetailPage({ params }: { params: Promise<{ id: 
     if (!reciboId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/recibos/${reciboId}`);
+      const res = await fetch(`/api/recibos-exclusivos/${reciboId}`);
       if (!res.ok) {
         router.push("/recibos-asa");
         return;
@@ -261,7 +262,7 @@ export default function ReciboAsaDetailPage({ params }: { params: Promise<{ id: 
     if (!confirm(msg)) return;
     setToggling(true);
     try {
-      const res = await fetch(`/api/recibos/${recibo.id}`, {
+      const res = await fetch(`/api/recibos-exclusivos/${recibo.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ativo: !recibo.ativo }),
@@ -323,10 +324,10 @@ export default function ReciboAsaDetailPage({ params }: { params: Promise<{ id: 
         <div className="recibo-print bg-white border rounded-xl p-5 max-w-[800px] mx-auto shadow-sm print:shadow-none print:border-0 print:p-0 print:max-w-none">
           <div className="flex items-center border-b pb-4 mb-4">
             <div className="flex-shrink-0">
-              {empresa?.logo && (
+              {empresa?.logoExclusiva && (
                 <img
-                  src={empresa.logo}
-                  alt="Logo"
+                  src={empresa.logoExclusiva}
+                  alt="Logo exclusiva"
                   className="h-14 object-contain"
                 />
               )}

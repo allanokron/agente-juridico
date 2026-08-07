@@ -106,6 +106,16 @@ enum FormaPagamento {
   BOLETO
 }
 
+enum TipoRecibo {
+  REGULAR
+  EXCLUSIVO
+}
+
+enum TipoServico {
+  REGULAR
+  EXCLUSIVO
+}
+
 // ============================================
 // MULTI TENANT - EMPRESAS/ESCRITÓRIOS
 // ============================================
@@ -123,6 +133,7 @@ model Empresa {
   numero                String?
   complemento           String?
   logo                  String?
+  logoExclusiva         String?
   plano                 String                @default("free")
   ativo                 Boolean               @default(true)
   provisionamentoStatus ProvisionamentoStatus @default(PRONTO)
@@ -145,6 +156,7 @@ model Empresa {
   cargos       Cargo[]
   recibos      Recibo[]
   servicosTipo ServicoTipo[]
+  recibosExclusivosNumeracao ReciboExclusivoNumeracao?
   masterUser   Usuario?       @relation("EmpresaMaster", fields: [masterUserId], references: [id], onDelete: SetNull)
   leadOrigem   Lead?          @relation("LeadConvertido", fields: [leadOrigemId], references: [id], onDelete: SetNull)
 
@@ -159,6 +171,7 @@ model Recibo {
   id                    String          @id @default(cuid())
   empresaId             String
   numero                Int
+  tipo                  TipoRecibo      @default(REGULAR)
   valor                 Float
   dataPagamento         DateTime
 
@@ -196,20 +209,32 @@ model Recibo {
   servicoTipo ServicoTipo? @relation(fields: [servicoTipoId], references: [id], onDelete: SetNull)
   criadoPor  Usuario  @relation("ReciboCriador", fields: [criadoPorId], references: [id])
 
-  @@unique([empresaId, numero])
+  @@unique([empresaId, tipo, numero])
+  @@index([empresaId, tipo])
   @@map("recibos")
 }
 
 model ServicoTipo {
-  id        String  @id @default(cuid())
+  id        String      @id @default(cuid())
   empresaId String
   nome      String
-  ativo     Boolean @default(true)
+  tipo      TipoServico @default(REGULAR)
+  ativo     Boolean     @default(true)
 
   empresa  Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   recibos  Recibo[]
 
   @@map("servico_tipos")
+}
+
+model ReciboExclusivoNumeracao {
+  id            String @id @default(cuid())
+  empresaId     String @unique
+  proximoNumero Int    @default(1)
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@map("recibos_exclusivos_numeracao")
 }
 
 // ============================================

@@ -81,6 +81,7 @@ interface ServicoStat {
 
 interface Empresa {
   logo: string | null;
+  logoExclusiva: string | null;
 }
 
 const PIE_COLORS = [
@@ -204,8 +205,8 @@ export default function RecibosAsaPage() {
       if (statusFilter) params.set("status", statusFilter);
 
       const [recibosRes, statsRes] = await Promise.all([
-        fetch(`/api/recibos?${params.toString()}`),
-        fetch(`/api/recibos/stats?${params.toString()}`),
+        fetch(`/api/recibos-exclusivos?${params.toString()}`),
+        fetch(`/api/recibos-exclusivos/stats?${params.toString()}`),
       ]);
 
       if (recibosRes.ok) setRecibos(await recibosRes.json());
@@ -227,7 +228,7 @@ export default function RecibosAsaPage() {
 
   const fetchServicosTipo = useCallback(async () => {
     try {
-      const res = await fetch("/api/servicos-tipo");
+      const res = await fetch("/api/servicos-tipo?tipo=EXCLUSIVO");
       if (res.ok) setServicosTipo(await res.json());
     } catch {
       // silent
@@ -268,16 +269,16 @@ export default function RecibosAsaPage() {
         const res = await fetch(`/api/empresas/${user.empresaId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ logo: base64 }),
+          body: JSON.stringify({ logoExclusiva: base64 }),
         });
         if (res.ok) {
-          setEmpresa((prev) => prev ? { ...prev, logo: base64 } : prev);
-          toast.success("Logo atualizada com sucesso");
+          setEmpresa((prev) => prev ? { ...prev, logoExclusiva: base64 } : prev);
+          toast.success("Logo exclusiva atualizada com sucesso");
         } else {
-          toast.error("Erro ao salvar logo");
+          toast.error("Erro ao salvar logo exclusiva");
         }
       } catch {
-        toast.error("Erro ao salvar logo");
+        toast.error("Erro ao salvar logo exclusiva");
       } finally {
         setUploadingLogo(false);
       }
@@ -293,14 +294,14 @@ export default function RecibosAsaPage() {
       const res = await fetch(`/api/empresas/${user.empresaId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ logo: null }),
+        body: JSON.stringify({ logoExclusiva: null }),
       });
       if (res.ok) {
-        setEmpresa((prev) => prev ? { ...prev, logo: null } : prev);
-        toast.success("Logo removida");
+        setEmpresa((prev) => prev ? { ...prev, logoExclusiva: null } : prev);
+        toast.success("Logo exclusiva removida");
       }
     } catch {
-      toast.error("Erro ao remover logo");
+      toast.error("Erro ao remover logo exclusiva");
     } finally {
       setUploadingLogo(false);
     }
@@ -313,7 +314,7 @@ export default function RecibosAsaPage() {
       const res = await fetch("/api/servicos-tipo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome: novoServicoNome.trim() }),
+        body: JSON.stringify({ nome: novoServicoNome.trim(), tipo: "EXCLUSIVO" }),
       });
       if (res.ok) {
         toast.success("Serviço adicionado");
@@ -375,7 +376,7 @@ export default function RecibosAsaPage() {
         params.set("servicoTipoId", relatorioServicoTipo);
       params.set("formato", relatorioFormato);
 
-      const res = await fetch(`/api/recibos/relatorio?${params.toString()}`);
+      const res = await fetch(`/api/recibos-exclusivos/relatorio?${params.toString()}`);
       if (!res.ok) {
         toast.error("Erro ao gerar relatório");
         return;
@@ -385,7 +386,7 @@ export default function RecibosAsaPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `recibos_${new Date().toISOString().slice(0, 10)}.${relatorioFormato === "pdf" ? "pdf" : "xlsx"}`;
+      a.download = `recibos_exclusivos_${new Date().toISOString().slice(0, 10)}.${relatorioFormato === "pdf" ? "pdf" : "xlsx"}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -417,18 +418,18 @@ export default function RecibosAsaPage() {
             <div className="flex items-center gap-4">
               <Star className="h-5 w-5 text-amber-500" />
               <div className="flex-1">
-                <p className="text-sm font-semibold">Logo do Escritório</p>
+                <p className="text-sm font-semibold">Logo Exclusiva</p>
                 <p className="text-xs text-muted-foreground">
                   Esta logo aparece nos recibos impressos desta tela exclusiva.
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                {empresa?.logo && (
+                {empresa?.logoExclusiva && (
                   <div className="relative h-12 w-32 rounded-lg border border-border overflow-hidden bg-muted flex items-center justify-center">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={empresa.logo}
-                      alt="Logo do escritório"
+                      src={empresa.logoExclusiva}
+                      alt="Logo exclusiva"
                       className="h-full w-full object-contain"
                     />
                   </div>
@@ -440,7 +441,7 @@ export default function RecibosAsaPage() {
                     ) : (
                       <Building2 className="h-4 w-4" />
                     )}
-                    {empresa?.logo ? "Alterar logo" : "Selecionar logo"}
+                    {empresa?.logoExclusiva ? "Alterar logo" : "Selecionar logo"}
                     <input
                       ref={logoInputRef}
                       type="file"
@@ -450,7 +451,7 @@ export default function RecibosAsaPage() {
                       disabled={uploadingLogo}
                     />
                   </label>
-                  {empresa?.logo && (
+                  {empresa?.logoExclusiva && (
                     <Button
                       variant="ghost"
                       size="sm"

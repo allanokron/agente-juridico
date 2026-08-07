@@ -98,7 +98,7 @@ export default function NovoReciboAsaPage() {
     try {
       const [clientesRes, servicosRes, empresaRes] = await Promise.all([
         fetch(`/api/clientes?empresaId=${user.empresaId}`),
-        fetch("/api/servicos-tipo"),
+        fetch("/api/servicos-tipo?tipo=EXCLUSIVO"),
         fetch(`/api/empresas/${user.empresaId}`),
       ]);
       if (clientesRes.ok) setClientes(await clientesRes.json());
@@ -202,7 +202,7 @@ export default function NovoReciboAsaPage() {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/recibos", {
+      const res = await fetch("/api/recibos-exclusivos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -33,6 +33,7 @@ export async function GET(
         numero: true,
         complemento: true,
         logo: true,
+        logoExclusiva: true,
         plano: true,
       },
     });
@@ -65,7 +66,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { nome, cnpj, email, telefone, endereco, cidade, uf, logo, cep, numero, complemento } = body;
+    const { nome, cnpj, email, telefone, endereco, cidade, uf, logo, logoExclusiva, cep, numero, complemento } = body;
 
     const empresa = await prisma.empresa.update({
       where: { id },
@@ -81,6 +82,7 @@ export async function PUT(
         ...(numero !== undefined && { numero }),
         ...(complemento !== undefined && { complemento }),
         ...(logo !== undefined && { logo }),
+        ...(logoExclusiva !== undefined && { logoExclusiva }),
       },
       select: {
         id: true,
@@ -95,6 +97,7 @@ export async function PUT(
         numero: true,
         complemento: true,
         logo: true,
+        logoExclusiva: true,
       },
     });
 

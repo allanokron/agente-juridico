@@ -2,13 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const user = await getSessionUser();
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
+    const { searchParams } = new URL(request.url);
+    const tipo = searchParams.get("tipo");
+
+    const where: Record<string, unknown> = { empresaId: user.empresaId, ativo: true };
+
+    if (tipo === "REGULAR" || tipo === "EXCLUSIVO") {
+      where.tipo = tipo;
+    }
+
     const servicosTipo = await prisma.servicoTipo.findMany({
-      where: { empresaId: user.empresaId, ativo: true },
+      where,
       orderBy: { nome: "asc" },
     });
 
@@ -28,7 +37,7 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
     const body = await request.json();
-    const { nome } = body;
+    const { nome, tipo } = body;
 
     if (!nome) {
       return NextResponse.json(
@@ -37,8 +46,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const servicoTipo = tipo === "EXCLUSIVO" ? "EXCLUSIVO" : "REGULAR";
+
     const existing = await prisma.servicoTipo.findFirst({
-      where: { empresaId: user.empresaId, nome, ativo: true },
+      where: { empresaId: user.empresaId, nome, tipo: servicoTipo, ativo: true },
     });
 
     if (existing) {
@@ -48,14 +59,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const servicoTipo = await prisma.servicoTipo.create({
+    const newServicoTipo = await prisma.servicoTipo.create({
       data: {
         empresaId: user.empresaId,
         nome,
+        tipo: servicoTipo,
       },
     });
 
-    return NextResponse.json(servicoTipo, { status: 201 });
+    return NextResponse.json(newServicoTipo, { status: 201 });
   } catch (error) {
     console.error("Erro ao criar serviço tipo:", error);
     return NextResponse.json(
